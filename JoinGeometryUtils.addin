@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>JoinGeometryUtils</Name>
+		<Assembly>./JoinGeometryUtils/JoinGeometryUtils.dll</Assembly>
+		<AddInId>a34fef9d-0766-4b6f-aa58-1648a6ddf575</AddInId>
+		<FullClassName>JoinGeometryUtils.App</FullClassName>
+		<VendorId>LYZTW</VendorId>
+		<VendorDescription>Lyztw, lyztw.com.tw</VendorDescription>
+	</AddIn>
+</RevitAddIns>
