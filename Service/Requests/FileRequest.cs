@@ -10,11 +10,11 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
-using JoinGeometryUtils.Service.Request;
+using CreateColumn.Service.Request;
 using Newtonsoft.Json;
 using Image = System.Windows.Controls.Image;
 
-namespace JoinGeometryUtils.Service
+namespace CreateColumn.Service
 {
     public abstract class FileRequest : BaseRequest
     {

@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>CreateColumn</Name>
+		<Assembly>./CreateColumn/CreateColumn.dll</Assembly>
+		<AddInId>a34fef9d-0766-4b6f-aa58-1648a6ddf576</AddInId>
+		<FullClassName>CreateColumn.App</FullClassName>
+		<VendorId>LYZTW</VendorId>
+		<VendorDescription>Lyztw, lyztw.com.tw</VendorDescription>
+	</AddIn>
+</RevitAddIns>

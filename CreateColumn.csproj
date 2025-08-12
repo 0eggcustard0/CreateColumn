@@ -8,8 +8,8 @@
     <ProjectGuid>{68F0790D-4F05-4CF2-995B-4A94708A5CE2}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>JoinGeometryUtils</RootNamespace>
-    <AssemblyName>JoinGeometryUtils</AssemblyName>
+    <RootNamespace>CreateColumn</RootNamespace>
+    <AssemblyName>CreateColumn</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -102,7 +102,7 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
-    <None Include="JoinGeometryUtils.addin" />
+    <None Include="CreateColumn.addin" />
     <None Include="Resources\green.png" />
   </ItemGroup>
   <ItemGroup>
@@ -122,13 +122,13 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(TargetDir)" "C:\ProgramData\Autodesk\Revit\Addins\2023\JoinGeometryUtils\" /y /e
-copy "$(ProjectDir)JoinGeometryUtils.addin" "C:\ProgramData\Autodesk\Revit\Addins\2023"
+    <PostBuildEvent>xcopy "$(TargetDir)" "C:\ProgramData\Autodesk\Revit\Addins\2023\CreateColumn\" /y /e
+copy "$(ProjectDir)CreateColumn.addin" "C:\ProgramData\Autodesk\Revit\Addins\2023"
 
 if not $(ConfigurationName) == Debug (
-xcopy "$(TargetDir)" "$(SolutionDir)\Release\JoinGeometryUtils\" /y /e
-powershell Compress-Archive -Path '$(SolutionDir)\Release\JoinGeometryUtils','$(ProjectDir)JoinGeometryUtils.addin' -DestinationPath '$(SolutionDir)\Release\JoinGeometryUtils.zip' -Force
-rd /s /q "$(SolutionDir)\Release\JoinGeometryUtils"
+xcopy "$(TargetDir)" "$(SolutionDir)\Release\CreateColumn\" /y /e
+powershell Compress-Archive -Path '$(SolutionDir)\Release\CreateColumn','$(ProjectDir)CreateColumn.addin' -DestinationPath '$(SolutionDir)\Release\CreateColumn.zip' -Force
+rd /s /q "$(SolutionDir)\Release\CreateColumn"
 )</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -1,4 +1,4 @@
-﻿<Page x:Class="JoinGeometryUtils.Forms.MainPage"
+﻿<Page x:Class="CreateColumn.Forms.MainPage"
         xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:dat="clr-namespace:System.Windows.Data;assembly=PresentationFramework"

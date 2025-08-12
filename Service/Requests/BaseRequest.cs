@@ -6,11 +6,11 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
-using JoinGeometryUtils.Model.ResponseModel;
-using JoinGeometryUtils.Service;
+using CreateColumn.Model.ResponseModel;
+using CreateColumn.Service;
 using Newtonsoft.Json;
 
-namespace JoinGeometryUtils.Service.Request
+namespace CreateColumn.Service.Request
 {
     public class ParamAttribute : Attribute { }
     public class BodyAttribute : Attribute { }

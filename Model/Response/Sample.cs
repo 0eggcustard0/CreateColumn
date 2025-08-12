@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 
-namespace JoinGeometryUtils.Model.ResponseModel
+namespace CreateColumn.Model.ResponseModel
 {
     public class Sample
     {

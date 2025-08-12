@@ -6,12 +6,12 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using JoinGeometryUtils.Service.Request;
+using CreateColumn.Service.Request;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 
-namespace JoinGeometryUtils.Service
+namespace CreateColumn.Service
 {
     public class BaseHttpService
     {

@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace JoinGeometryUtils.Service
+namespace CreateColumn.Service
 {
     internal class Global
     {

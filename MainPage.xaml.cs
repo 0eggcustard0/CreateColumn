@@ -2,7 +2,7 @@
 using System.Windows.Controls;
 using Autodesk.Revit.UI;
 
-namespace JoinGeometryUtils.Forms
+namespace CreateColumn.Forms
 {
     /// <summary>
     /// Interaction logic for UserControl1.xaml

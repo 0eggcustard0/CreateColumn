@@ -5,10 +5,10 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using JoinGeometryUtils.Service.Request;
+using CreateColumn.Service.Request;
 using Newtonsoft.Json;
 
-namespace JoinGeometryUtils.Service
+namespace CreateColumn.Service
 {
     public class FileService : BaseHttpService
     {

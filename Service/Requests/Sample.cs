@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using JoinGeometryUtils.Service.Request;
+using CreateColumn.Service.Request;
 
-namespace JoinGeometryUtils.Service.Requests
+namespace CreateColumn.Service.Requests
 {
     public class PoseSample : BaseRequest
     {

@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace JoinGeometryUtils.Properties
+namespace CreateColumn.Properties
 {
 
 
