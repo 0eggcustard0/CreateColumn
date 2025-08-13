@@ -56,6 +56,9 @@ namespace CreateColumn
         public static string[] framesLayer = { };   // S-BEAM  / test
         public static string[] colstextLayer = { };
         public static string[] framestextLayer = { };
+        public static string gridTLayer = "";
+        public static string gridLLayer = "";
+
         //文字規則
         public static string pattern = "";
         public static string Dictrule = "";
@@ -64,16 +67,18 @@ namespace CreateColumn
         public static string Userimpath = "";
         public static double _tolerance = new double();
         public static double k = new double();  //座標轉換比例 公分(CAD)轉英尺(Revit)
-        public static XYZ vector = new XYZ();
+        public static XYZ Vector = new XYZ();
         public static double radian = new double();
         public static Dictionary<string, TextInfo> TextDict = new Dictionary<string, TextInfo>();
         public static Dictionary<Line, string> scatterLinedict = new Dictionary<Line, string>();
         public static Dictionary<Line, string> midlinedict = new Dictionary<Line, string>();
-        public static int coltimes = 0;
-        public static int beamtime = 0;
+        public static Dictionary<string, Grid> RGridDict = new Dictionary<string, Grid>();
+        public static Dictionary<string, Line> CGridDict = new Dictionary<string, Line>();
+        public static List<ACadSharp.Entities.Line> CADGridLine = new List<ACadSharp.Entities.Line>();
+
         private static void Reset()
         {
-            textinfos = new List<TextInfo>();//全文字
+            textinfos = new List<TextInfo>();//全CAD文字
             Coltextinf = new List<TextInfo>();//柱文字
             Frametextinf = new List<TextInfo>();//樑文字
             DictText = new List<TextInfo>();//尺寸對照表
@@ -82,6 +87,8 @@ namespace CreateColumn
             framesLayer = new string[] { "GIRDER", "BEAM" };   // S-BEAM  / test
             colstextLayer = new string[] { "C-TEXT" };
             framestextLayer = new string[] { "b-TEXT", "G-TEXT", "GY-TEXT" };
+            gridTLayer = "NOTE3";
+            gridLLayer = "CENTER";
             //文字規則
             pattern = @"(\d+)\s*x\s*(\d+)";
             Dictrule = @"([A-Z]+)或([A-Z][A-Z]+)";
@@ -89,13 +96,13 @@ namespace CreateColumn
             Userimpath = "";
             _tolerance = 0.001;
             k = 0.032808399;  //座標轉換比例 公分(CAD)轉英尺(Revit)
-            vector = new XYZ();
+            Vector = new XYZ();
             radian = 6.28;
             TextDict = new Dictionary<string, TextInfo>();
             scatterLinedict = new Dictionary<Line, string>();
             midlinedict = new Dictionary<Line, string>();
-            coltimes = 0;
-            beamtime = 0;
+            RGridDict = new Dictionary<string, Grid>();
+            CGridDict = new Dictionary<string, Line>();
         }
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -104,11 +111,15 @@ namespace CreateColumn
             Autodesk.Revit.DB.Document doc = uidoc.Document;
             Autodesk.Revit.DB.View activeview = doc.ActiveView;
 
+
             Userimpath = GetCADFilePath();
             if (Userimpath == null)
             {
                 message += "未選取檔案";
             }
+            ReadCad(Userimpath);
+            GetVector(doc, activeview);
+
             DWGImportOptions options = new DWGImportOptions
             {
                 Unit = ImportUnit.Centimeter,
@@ -126,11 +137,7 @@ namespace CreateColumn
                 {
                     bool result = doc.Import(Userimpath, options, activeview, out ElementId elementId);
                     doc.GetElement(elementId).Pinned = false;
-                    XYZ targetlocation = new XYZ(0, 0, doc.ActiveView.GenLevel.Elevation);
-                    BoundingBoxXYZ bbox = doc.GetElement(elementId).get_BoundingBox(null);
-                    XYZ location = (bbox != null) ? (bbox.Min + bbox.Max) / 2 : new XYZ(0, 0, doc.ActiveView.GenLevel.Elevation);
-                    vector = targetlocation - location;
-                    ElementTransformUtils.MoveElement(doc, elementId, vector);
+                    ElementTransformUtils.MoveElement(doc, elementId, Vector);
                     transf.Commit();
                 }
                 catch
@@ -138,7 +145,6 @@ namespace CreateColumn
                     transf.RollBack();
                 }
             }
-
             using (Transaction trans = new Transaction(doc, "處理現有CAD並創建柱子"))
             {
 
@@ -157,7 +163,6 @@ namespace CreateColumn
                     int processedImports = 0;
                     int createdColumns = 0;
                     List<string> pathlist = new List<string>();
-                    textinfos.AddRange(ReadText(Userimpath));
                     //文字圖層名稱
                     Coltextinf = textinfos.Where(t => colstextLayer.Contains(t.LayerName)).ToList();
                     Frametextinf = textinfos.Where(t => framestextLayer.Contains(t.LayerName)).ToList();
@@ -169,13 +174,13 @@ namespace CreateColumn
                         pathlist.Add(getpath(cadImport));
                         try
                         {
+
                             GeometryElement geoElement = cadImport.get_Geometry(new Options());
                             if (geoElement != null)
                             {
                                 int columnsFromThisImport = ProcessCADGeometry(doc, geoElement);
                                 createdColumns += columnsFromThisImport;
                                 processedImports++;
-                                message += $"處理CAD Import {processedImports}：創建了 {columnsFromThisImport} 根柱子\n";
                             }
                         }
                         catch (Exception ex)
@@ -197,18 +202,65 @@ namespace CreateColumn
 
         }
         //建立新類型
-        private static FamilySymbol CreateCustomType(Document doc, int width, int height, string typename, FamilySymbol copytype)
+        private static FamilySymbol CreateType(Document doc, int width, int height, string typename, FamilySymbol copytype)
         {
             // 複製族群符號
             FamilySymbol newSymbol = copytype.Duplicate(typename) as FamilySymbol;
-
             // 設定尺寸參數
             SetDimensions(newSymbol, width, height);
-
             if (!newSymbol.IsActive)
                 newSymbol.Activate();
-
             return newSymbol;
+        }
+        private static void GetVector(Document doc, Autodesk.Revit.DB.View activeview)
+        {
+            //找revit視圖上的gridline
+            FilteredElementCollector gridline = new FilteredElementCollector(doc, activeview.Id).OfClass(typeof(Grid));
+            IList<Element> gridlines = gridline.ToElements();
+            foreach (Grid grid in gridlines)
+            {
+                RGridDict.Add(grid.Name, grid);
+            }
+            //讀CAD的gridline
+            List<TextInfo> Cgridnames = textinfos.Where(t => gridTLayer.Equals(t.LayerName)).ToList();
+            foreach (TextInfo gridtext in Cgridnames)
+            {
+                try
+                {
+                    if (gridtext.Content.Contains("X"))
+                    {
+                        var gridlineX = CADGridLine.Where(t => Math.Abs(t.StartPoint.X - gridtext.Position.X) < 100).FirstOrDefault();
+                        XYZ startPoint = new XYZ(gridlineX.StartPoint.X, gridlineX.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                        XYZ endPoint = new XYZ(gridlineX.EndPoint.X, gridlineX.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                        CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
+                    }
+                    else if (gridtext.Content.Contains("Y"))
+                    {
+                        var gridlineY = CADGridLine.Where(t => Math.Abs(t.StartPoint.Y - gridtext.Position.Y) < 100).FirstOrDefault();
+                        XYZ startPoint = new XYZ(gridlineY.StartPoint.X, gridlineY.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                        XYZ endPoint = new XYZ(gridlineY.EndPoint.X, gridlineY.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                        CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
+                    }
+                }
+                catch
+                {
+                    continue;
+                }
+            }
+            Line Xmin = CGridDict.Where(t => t.Key.Contains("X")).OrderBy(t => t.Value.GetEndPoint(0).X).Select(t => t.Value).FirstOrDefault();
+            Line Ymax = CGridDict.Where(t => t.Key.Contains("Y")).OrderBy(t => t.Value.GetEndPoint(0).Y).Select(t => t.Value).LastOrDefault();
+            if (Xmin != null && Ymax != null)
+            {
+                XYZ CADPoint = new XYZ(Xmin.GetEndPoint(0).X, Ymax.GetEndPoint(0).Y, doc.ActiveView.GenLevel.Elevation);
+                XYZ RevitPoint = new XYZ(RGridDict[CGridDict.FirstOrDefault(t => t.Value == Xmin).Key].Curve.GetEndPoint(0).X,   //X1.X
+                                            RGridDict[CGridDict.FirstOrDefault(t => t.Value == Ymax).Key].Curve.GetEndPoint(0).Y,  //Y1.Y
+                                            doc.ActiveView.GenLevel.Elevation);
+                Vector = -(CADPoint * k - RevitPoint);
+            }
+            else
+            {
+                MessageBox.Show("錯誤", "未找到有效的Grid線，請檢查CAD文件或Revit視圖。");
+            }
         }
         //設定新類型尺寸
         private static void SetDimensions(FamilySymbol newSymbol, int width, int height)
@@ -217,7 +269,7 @@ namespace CreateColumn
             string[] heightParam = { "h", "Height" };
             foreach (string paraName in widthParam)
             {
-                Parameter param = newSymbol.LookupParameter(paraName);
+                Autodesk.Revit.DB.Parameter param = newSymbol.LookupParameter(paraName);
                 if (param != null && !param.IsReadOnly)
                 {
                     param.Set(UnitUtils.ConvertToInternalUnits(width, UnitTypeId.Millimeters));
@@ -226,7 +278,7 @@ namespace CreateColumn
             }
             foreach (string paramName in heightParam)
             {
-                Parameter param = newSymbol.LookupParameter(paramName);
+                Autodesk.Revit.DB.Parameter param = newSymbol.LookupParameter(paramName);
                 if (param != null && !param.IsReadOnly)
                 {
                     param.Set(UnitUtils.ConvertToInternalUnits(height, UnitTypeId.Millimeters));
@@ -251,7 +303,7 @@ namespace CreateColumn
             else
             {
                 var DurcColumn = columnSymbols.FirstOrDefault(fs => fs.Family.Name.Contains("RC"));
-                FamilySymbol columnT = CreateCustomType(doc, sizeinfo.texWidth, sizeinfo.texHeight,
+                FamilySymbol columnT = CreateType(doc, sizeinfo.texWidth, sizeinfo.texHeight,
                             (sizeinfo.texWidth / 10) + "x" + (sizeinfo.texHeight / 10) + "cm", DurcColumn);
                 return ActivateSymbol(columnT);
             }
@@ -272,7 +324,7 @@ namespace CreateColumn
             else
             {
                 var DurcBeam = BeamSymbols.FirstOrDefault(fs => fs.Family.Name.Contains("RC"));
-                FamilySymbol BeamT = CreateCustomType(doc, sizeinfo.texWidth, sizeinfo.texHeight,
+                FamilySymbol BeamT = CreateType(doc, sizeinfo.texWidth, sizeinfo.texHeight,
                             (sizeinfo.texWidth / 10) + "x" + (sizeinfo.texHeight / 10) + "cm", DurcBeam);
                 return ActivateSymbol(BeamT);
             }
@@ -290,8 +342,6 @@ namespace CreateColumn
             if (geoElement == null) return 0;
             scatterLinedict = new Dictionary<Line, string>();
             midlinedict = new Dictionary<Line, string>();
-            coltimes = 0;
-            beamtime = 0;
             TextDict = new Dictionary<string, TextInfo>();
             Dictionary<string, List<TextInfo>> typetotext = new Dictionary<string, List<TextInfo>>
             {
@@ -635,8 +685,8 @@ namespace CreateColumn
         //距離計算
         private static double CalculateDistance(CSMath.XYZ pointCAD, XYZ Revpoint, double k)
         {
-            double dx = pointCAD.X * k + vector.X - Revpoint.X;
-            double dy = pointCAD.Y * k + vector.Y - Revpoint.Y;
+            double dx = pointCAD.X * k + Vector.X - Revpoint.X;
+            double dy = pointCAD.Y * k + Vector.Y - Revpoint.Y;
             return Math.Sqrt((dx * dx) + (dy * dy));
         }
         private Line getMiddleline(List<XYZ> rectangle)
@@ -707,9 +757,8 @@ namespace CreateColumn
             public Line Lineset { get; set; }
             public bool used { get; set; } // 是否已經使用過
         }
-        private List<TextInfo> ReadText(string path)
+        private void ReadCad(string path)
         {
-            List<TextInfo> textInfos = new List<TextInfo>();
             try
             {
                 using (var fs = File.OpenRead(path))
@@ -718,7 +767,7 @@ namespace CreateColumn
                     var reader = new DwgReader(path);
                     document = reader.Read();
                     //文字類型
-                    foreach (var entity in document.Entities)
+                    foreach (Entity entity in document.Entities)
                     {
                         if (entity is TextEntity text)
                         {
@@ -730,7 +779,7 @@ namespace CreateColumn
                                 Height = text.Height,
                                 Rotation = text.Rotation,
                             };
-                            textInfos.Add(info);
+                            textinfos.Add(info);
                         }
                         else if (entity is MText mtext)
                         {
@@ -742,7 +791,11 @@ namespace CreateColumn
                                 Height = mtext.Height,
                                 Rotation = mtext.Rotation,
                             };
-                            textInfos.Add(info);
+                            textinfos.Add(info);
+                        }
+                        else if (entity is ACadSharp.Entities.Line line && line.Layer.Name.Equals(gridLLayer))
+                        {
+                            CADGridLine.Add(line);
                         }
                     }
                 }
@@ -751,9 +804,7 @@ namespace CreateColumn
             {
                 TaskDialog.Show("錯誤", "無法讀取CAD文件: " + ex.Message);
                 // 可以選擇記錄錯誤或處理異常
-                return null;
             }
-            return textInfos;
         }
         private List<Line> Getcenter(Document doc, List<Line> sidelines, List<XYZ> uniqueCoordinates)
         {
