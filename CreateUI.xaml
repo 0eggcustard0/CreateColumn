@@ -1,0 +1,118 @@
+﻿<Window x:Class="CreateColumn.SettingLayer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:CreateColumn"
+             xmlns:System="clr-namespace:System.Collections.ObjectModel;assembly=System"
+        mc:Ignorable="d" 
+             
+             Background="LightGray"
+             Title="CAD圖層設定" Width="800" FontSize="30" d:DesignWidth="800" Height="850">
+    <Window.Resources>
+        <local:CollectionToStringConverter x:Key="CollectionToStringConverter" />
+    </Window.Resources>
+    <Grid Height="800" VerticalAlignment="Top" >
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width= "400" />
+            <ColumnDefinition Width= "400" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="20"/>
+            <RowDefinition Height="60" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Menu Grid.Row="0" Grid.ColumnSpan="2">
+            <MenuItem Header="_Help" Height="20">
+                <MenuItem Header="Turtorial" Click="OpenTurtorial"/>
+            </MenuItem>
+        </Menu>
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Height="50" Orientation="Horizontal" Margin="0,10,0,0">
+            <TextBox HorizontalAlignment="Left" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Filepath,UpdateSourceTrigger=PropertyChanged}" 
+                     IsReadOnly="True" FontSize="16" Width="720" Height="50" Margin="10,0,0,0" />
+            <Button x:Name="Browse"  Content="瀏覽" HorizontalAlignment="Right" Width="50" Height="30" 
+                    Click="Get_Path"  Background="LightGray" FontSize="15" Margin="0,0,0,0"/>
+        </StackPanel>
+        <!--CAD 路徑-->
+        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Vertical" >
+            <TextBlock Text="柱結構" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="20" Margin="10,0,0,0" Height="30"/>
+            <StackPanel  Orientation="Horizontal" >
+                <ComboBox  x:Name="ColumnLayer" Background="White" Margin="10,0,0,0" ItemsSource="{Binding ColumnLayer, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="SelectAction" HorizontalAlignment="Left" FontSize="16" VerticalAlignment="Top"  Height="25" Width="300"/>
+                <Button  x:Name="ColumnLayer_Plus" Click="plusorminus" Content="+" Height="25" VerticalAlignment="Top"  FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightCyan" />
+                <Button  x:Name="ColumnLayer_Minus" Click="plusorminus" Content="-" Height="25" VerticalAlignment="Top" FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightPink"/>
+            </StackPanel>
+            <TextBlock Text="{Binding ColumnLayer, Converter={StaticResource CollectionToStringConverter}}" FontSize="12" Margin="15,0,0,0" />
+        </StackPanel>
+        <!--柱-->
+        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Vertical" >
+            <TextBlock Text="柱標籤" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="20" Margin="10,0,0,0" Height="30"/>
+            <StackPanel  Orientation="Horizontal" >
+                <ComboBox  x:Name="ColumnTextLayer" Margin="10,0,0,0" ItemsSource="{Binding ColumnTextLayer, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="SelectAction" HorizontalAlignment="Left" FontSize="16" VerticalAlignment="Top"  Height="25" Width="300"/>
+                <Button  x:Name="ColumnTextLayer_Plus" Click="plusorminus" Content="+" Height="25" VerticalAlignment="Top"  FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightCyan"/>
+                <Button  x:Name="ColumnTextLayer_Minus" Click="plusorminus" Content="-" Height="25" VerticalAlignment="Top" FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightPink"/>
+            </StackPanel>
+            <TextBlock Text="{Binding ColumnTextLayer, Converter={StaticResource CollectionToStringConverter}}" FontSize="12" Margin="15,0,0,0" />
+        </StackPanel>
+        <!--柱標籤-->
+        <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Vertical" >
+            <TextBlock Text="樑結構" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="20" Margin="10,0,0,0" Height="30"/>
+            <StackPanel  Orientation="Horizontal" >
+                <ComboBox  x:Name="BeamLayer"  Margin="10,0,0,0" ItemsSource="{Binding BeamLayer, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="SelectAction" HorizontalAlignment="Left" FontSize="16" VerticalAlignment="Top"  Height="25" Width="300"/>
+                <Button x:Name="BeamLayer_Plus" Click="plusorminus" Content="+" Height="25" VerticalAlignment="Top"  FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightCyan"/>
+                <Button x:Name="BeamLayer_Minus" Click="plusorminus" Content="-" Height="25" VerticalAlignment="Top" FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightPink"/>
+            </StackPanel>
+            <TextBlock Text="{Binding BeamLayer, Converter={StaticResource CollectionToStringConverter}}" FontSize="12" Margin="15,0,0,0" />
+        </StackPanel>
+        <!--樑-->
+        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Vertical" >
+            <TextBlock Text="樑標籤" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="20" Margin="10,0,0,0" Height="30"/>
+            <StackPanel  Orientation="Horizontal" >
+                <ComboBox  x:Name="BeamTextLayer" Margin="10,0,0,0" ItemsSource="{Binding BeamTextLayer, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="SelectAction" HorizontalAlignment="Left" FontSize="16" VerticalAlignment="Top"  Height="25" Width="300"/>
+                <Button x:Name="BeamTextLayer_Plus" Click="plusorminus" Content="+" Height="25" VerticalAlignment="Top"  FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightCyan"/>
+                <Button x:Name="BeamTextLayer_Minus" Click="plusorminus" Content="-" Height="25" VerticalAlignment="Top" FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightPink"/>
+            </StackPanel>
+            <TextBlock Text="{Binding BeamTextLayer, Converter={StaticResource CollectionToStringConverter}}" FontSize="12" Margin="15,0,0,0" />
+        </StackPanel>
+        <!--樑標籤-->
+        <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Vertical" >
+            <TextBlock Text="柱線" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="20" Margin="10,0,0,0" Height="30"/>
+            <StackPanel  Orientation="Horizontal"  >
+                <ComboBox  x:Name="GridLayer" Margin="10,0,0,0" ItemsSource="{Binding GridLayer, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="SelectAction" HorizontalAlignment="Left" FontSize="16" VerticalAlignment="Top"  Height="25" Width="300"/>
+                <Button x:Name="GridLayer_Plus"  Click="plusorminus" Content="+" Height="25" VerticalAlignment="Top"  FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightCyan"/>
+                <Button x:Name="GridLayer_Minus" Click="plusorminus" Content="-" Height="25" VerticalAlignment="Top" FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightPink"/>
+            </StackPanel>
+            <TextBlock Text="{Binding GridLayer , Converter={StaticResource CollectionToStringConverter}}" FontSize="12" Margin="15,0,0,0" />
+        </StackPanel>
+        <!--柱線-->
+        <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Vertical" >
+            <TextBlock Text="柱線標籤" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="20" Margin="10,0,0,0" Height="30"/>
+            <StackPanel  Orientation="Horizontal" >
+                <ComboBox  x:Name="GridTextLayer" Margin="10,0,0,0" ItemsSource="{Binding GridTextLayer, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="SelectAction" HorizontalAlignment="Left" FontSize="16" VerticalAlignment="Top"  Height="25" Width="300"/>
+                <Button x:Name="GridTextLayer_Plus" Click="plusorminus" Content="+" Height="25" VerticalAlignment="Top"  FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightCyan"/>
+                <Button x:Name="GridTextLayer_Minus" Click="plusorminus"  Content="-" Height="25" VerticalAlignment="Top" FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightPink"/>
+            </StackPanel>
+            <TextBlock Text="{Binding GridTextLayer, Converter={StaticResource CollectionToStringConverter}}" FontSize="12" Margin="15,0,0,0" />
+        </StackPanel>
+        <!--柱線標籤-->
+        <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Vertical" >
+            <TextBlock Text="尺寸對照表" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="20" Margin="10,0,0,0" Height="30"/>
+            <StackPanel  Orientation="Horizontal" >
+                <ComboBox  x:Name="DictLayer"  Margin="10,0,0,0" ItemsSource="{Binding DictLayer, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="SelectAction" HorizontalAlignment="Left" FontSize="16" VerticalAlignment="Top"  Height="25" Width="300"/>
+                <Button x:Name="DictLayer_Plus" Click="plusorminus" Content="+" Height="25" VerticalAlignment="Top"  FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightCyan"/>
+                <Button x:Name="DictLayer_Minus" Click="plusorminus" Content="-" Height="25" VerticalAlignment="Top" FontSize ="20" Width="20" RenderTransformOrigin="0.5,0.5" Background="LightPink"/>
+            </StackPanel>
+            <TextBlock Text="{Binding DictLayer, Converter={StaticResource CollectionToStringConverter}}" FontSize="12" Margin="15,0,0,0" />
+        </StackPanel>
+        <!--尺寸對照表-->
+        <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Vertical" >
+            <TextBlock Text="選擇要變更的圖層:" Margin="90,0,0,0" FontSize="20" />
+            <ComboBox  x:Name="SelectBox" Margin="90,20,90,0" ItemsSource="{Binding LayerList, UpdateSourceTrigger=PropertyChanged}" 
+                      SelectedItem="{Binding SelectedLayer, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" FontSize="16" />
+            <Button Width="80" Height="40" VerticalAlignment="Bottom"  HorizontalAlignment="Right" Margin="0,30,30,0" Content="建造" FontSize="20" Click="create" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -83,12 +83,19 @@
     <Compile Include="Service\Requests\BaseRequest.cs" />
     <Compile Include="Service\Requests\FileRequest.cs" />
     <Compile Include="Service\Requests\Sample.cs" />
+    <Compile Include="CreateUI.xaml.cs">
+      <DependentUpon>CreateUI.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Util\Ribbon.cs" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="MainPage.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="CreateUI.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>
@@ -98,6 +105,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include=".editorconfig" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
