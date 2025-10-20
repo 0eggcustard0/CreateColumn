@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Web.UI.WebControls;
+using System.Windows;
 using System.Windows.Forms;
 using ACadSharp;
 using ACadSharp.Entities;
@@ -12,6 +15,7 @@ using ACadSharp.IO;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using static System.Net.Mime.MediaTypeNames;
 using Line = Autodesk.Revit.DB.Line;
 using XYZ = Autodesk.Revit.DB.XYZ;
 //全接合
@@ -45,7 +49,7 @@ namespace CreateColumn
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            SettingLayer.ShowInstance();
+            SettingLayer.ShowInstance(commandData);
             // 打開設定視窗
             return Result.Succeeded;
         }
@@ -86,12 +90,16 @@ namespace CreateColumn
         //文字規則
         public static string pattern = "";
         public static string Dictrule = "";
+        public static string BeaminFloor = "";
         public static string symble = "";
         //
         public static Dictionary<Autodesk.Revit.DB.PolyLine, TextInfo> sizedict = new Dictionary<Autodesk.Revit.DB.PolyLine, TextInfo>();
         public static string Userimpath = "";
         public static double _tolerance = new double();
         public static double k = new double();  //座標轉換比例 公分(CAD)轉英尺(Revit)
+        public static double tran = new double(); //單位轉換比例
+        public static string Rsize = "公釐";     //Revit的長度單位
+        public static string Csize= "";        //CAD紀錄的尺寸單位
         public static XYZ Vector = new XYZ();
         public static double radian = new double();
         public static Dictionary<string, TextInfo> TextDict = new Dictionary<string, TextInfo>();
@@ -103,6 +111,9 @@ namespace CreateColumn
         public static List<ACadSharp.Entities.Line> CADColLine = new List<ACadSharp.Entities.Line>();
         public static List<ACadSharp.Entities.Line> CADFrameLine = new List<ACadSharp.Entities.Line>();
         public static string messag = "";
+        public static bool BIF = new bool();
+        public static string usingCol = "";
+        public static string usingBeam = "";
 
         public static void Reset()
         {
@@ -119,16 +130,17 @@ namespace CreateColumn
             gridTLayer = CurrentViewModel.GridTextLayer.ToArray();
             sizedataLayer = CurrentViewModel.DictLayer.ToArray();
             //文字規則
-            pattern = @"(\d+)\s*x\s*(\d+)";
-            Dictrule = @"([A-Za-z]+\d*)\s*(?:或|,)?\s*([A-Za-z]+\d*)*";//@"[A-Za-z]\d*(?:\s*或\s*|\s*,\s*)[A-Za-z]+\d*";
+            pattern = @"(\d+)\s*x\s*(\d+)";                                                                                   //尺寸part
+            Dictrule = @"([A-Za-z]+[\-\d]*)\s*(?:(?:或|,)\s*([A-Za-z]+[\-\d]*))?";// @"([A-Za-z]+[\-\d]*)\s*(?:或|,)?\s*([A-Za-z]+\d*)*";     //標籤(編號)part
+            BeaminFloor = @"(版中梁)";
             symble = @"^([^(]*)";
 
             Userimpath = CurrentViewModel.Path;
             sizedict = new Dictionary<Autodesk.Revit.DB.PolyLine, TextInfo>();
             _tolerance = 0.001;
-            k = 0.032808399;  //座標轉換比例 公分(CAD)轉英尺(Revit)
             Vector = new XYZ();
             radian = 3.14;
+            tran = 1;
             TextDict = new Dictionary<string, TextInfo>();
             scatterLinedict = new Dictionary<Lineinf, string>();
             midlinedict = new Dictionary<Line, string>();
@@ -137,6 +149,11 @@ namespace CreateColumn
             CADGridLine = new List<ACadSharp.Entities.Line>();
             CADColLine = new List<ACadSharp.Entities.Line>();
             CADFrameLine = new List<ACadSharp.Entities.Line>();
+            messag = "";
+            BIF = CurrentViewModel.NeedBIF;
+            usingCol = CurrentViewModel.choosing["Symbolcollist"];
+            usingBeam = CurrentViewModel.choosing["Symbolbeamlist"];
+            
         }
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -151,16 +168,61 @@ namespace CreateColumn
                 Autodesk.Revit.DB.Document doc = uidoc.Document;
                 Autodesk.Revit.DB.View activeview = doc.ActiveView;
                 ReadCad(Userimpath);
+                Units unit = doc.GetUnits();
+                FormatOptions lengthFormat = unit.GetFormatOptions(SpecTypeId.Length);
+                ForgeTypeId lengthUnitType = lengthFormat.GetUnitTypeId();
+                Rsize = LabelUtils.GetLabelForUnit(lengthUnitType);  //公分or公釐
+
+                try
+                {
+                    switch (Csize)
+                    {
+                        case "cm":
+                            k = 0.032808399;  //座標轉換比例 公分(CAD)轉英尺(Revit)
+                            switch (Rsize)
+                            {
+                                case "公分":
+                                    tran = 1;
+                                    break;
+                                case "公釐":
+                                    tran = 10;
+                                    break;
+                            }
+                            break;
+                        case "mm":
+                            k = 0.0032808399;  //座標轉換比例 公釐(CAD)轉英尺(Revit)
+                            switch (Rsize)
+                            {
+                                case "公分":
+                                    tran = 0.1;
+                                    break;
+                                case "公釐":
+                                    tran = 1;
+                                    break;
+                            }
+                            break;
+                    }
+                }
+                catch
+                {
+                }
                 GetVector(doc, activeview);  //原點定位偏移
                                              //文字圖層名稱
-                Coltextinf = textinfos.Where(t => colstextLayer.Contains(t.LayerName)).ToList();
+                                             //var matchdict = Regex.Match(text.Content, Dictrule, RegexOptions.IgnoreCase);
+                Coltextinf = textinfos.Where(t => colstextLayer.Contains(t.LayerName)).ToList();   //**
+                foreach(var key in Coltextinf)
+                {
+                    var match = Regex.Match(key.Content, Dictrule, RegexOptions.IgnoreCase);
+                    key.Content = match.Groups[1].Value;
+                }
+                Coltextinf = Coltextinf.Where(key => key.Content != "f").ToList();
                 Frametextinf = textinfos.Where(t => framestextLayer.Contains(t.LayerName)).ToList();
                 DictText = textinfos.Where(t => sizedataLayer.Contains(t.LayerName)).ToList();
 
 
                 DWGImportOptions options = new DWGImportOptions
                 {
-                    Unit = ImportUnit.Centimeter,
+                    Unit = ImportUnit.Millimeter,
                     Placement = ImportPlacement.Origin,
                     ThisViewOnly = true,
                     AutoCorrectAlmostVHLines = true,
@@ -222,7 +284,7 @@ namespace CreateColumn
                         trans.Commit();
                         if (messag != "")
                         {
-                            MessageBox.Show(messag, "警告");
+                            System.Windows.MessageBox.Show(messag, "警告");
                         }
                         return Result.Succeeded;
                     }
@@ -235,7 +297,7 @@ namespace CreateColumn
             }
         }
         //建立新類型
-        public static FamilySymbol CreateType(Document doc, int width, int height, string typename, FamilySymbol copytype)
+        public static FamilySymbol CreateType(Document doc, double width, double height, string typename, FamilySymbol copytype)
         {
             // 複製族群符號
             FamilySymbol newSymbol = copytype.Duplicate(typename) as FamilySymbol;
@@ -260,28 +322,32 @@ namespace CreateColumn
             {
                 try
                 {
-                    if (gridtext.Content.Contains("X"))
-                    {
-                        var gridlineX = CADGridLine.Where(t => Math.Abs(t.StartPoint.X - gridtext.Position.X) < 100).FirstOrDefault();
-                        XYZ startPoint = new XYZ(gridlineX.StartPoint.X, gridlineX.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
-                        XYZ endPoint = new XYZ(gridlineX.EndPoint.X, gridlineX.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
-                        CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
-                    }
-                    else if (gridtext.Content.Contains("Y"))
-                    {
-                        var gridlineY = CADGridLine.Where(t => Math.Abs(t.StartPoint.Y - gridtext.Position.Y) < 100).FirstOrDefault();
-                        XYZ startPoint = new XYZ(gridlineY.StartPoint.X, gridlineY.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
-                        XYZ endPoint = new XYZ(gridlineY.EndPoint.X, gridlineY.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
-                        CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
-                    }
+                    var Gridline = CADGridLine.Where(t => Math.Abs(t.StartPoint.X - gridtext.Position.X) < 300&& Math.Abs(t.EndPoint.X - gridtext.Position.X)<300).FirstOrDefault();
+                    if (Gridline == null) Gridline = CADGridLine.Where(t => Math.Abs(t.StartPoint.Y - gridtext.Position.Y) < 300 && Math.Abs(t.EndPoint.Y - gridtext.Position.Y) < 300).FirstOrDefault();
+                    CGridDict.Add(gridtext.Content, Line.CreateBound(new XYZ(Gridline.StartPoint.X, Gridline.StartPoint.Y, doc.ActiveView.GenLevel.Elevation),
+                                                            new XYZ(Gridline.EndPoint.X, Gridline.EndPoint.Y, doc.ActiveView.GenLevel.Elevation)));
+                    //if (gridtext.Content.Contains("X"))
+                    //{
+                    //    var gridlineX = CADGridLine.Where(t => Math.Abs(t.StartPoint.X - gridtext.Position.X) < 100).FirstOrDefault();
+                    //    XYZ startPoint = new XYZ(gridlineX.StartPoint.X, gridlineX.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                    //    XYZ endPoint = new XYZ(gridlineX.EndPoint.X, gridlineX.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                    //    CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
+                    //}
+                    //else if (gridtext.Content.Contains("Y"))
+                    //{
+                    //    var gridlineY = CADGridLine.Where(t => Math.Abs(t.StartPoint.Y - gridtext.Position.Y) < 100).FirstOrDefault();
+                    //    XYZ startPoint = new XYZ(gridlineY.StartPoint.X, gridlineY.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                    //    XYZ endPoint = new XYZ(gridlineY.EndPoint.X, gridlineY.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                    //    CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
+                    //}
                 }
                 catch
                 {
                     continue;
                 }
             }
-            Line Xmin = CGridDict.Where(t => t.Key.Contains("X")).OrderBy(t => t.Value.GetEndPoint(0).X).Select(t => t.Value).FirstOrDefault();
-            Line Ymax = CGridDict.Where(t => t.Key.Contains("Y")).OrderBy(t => t.Value.GetEndPoint(0).Y).Select(t => t.Value).LastOrDefault();
+            Line Xmin = CGridDict.Where(t => CheckDirection(t.Value, Line.CreateUnbound(new XYZ( 0,0,0),new XYZ(0,1,0)))==true).OrderBy(t => t.Value.GetEndPoint(0).X).Select(t => t.Value).FirstOrDefault();
+            Line Ymax = CGridDict.Where(t => CheckDirection(t.Value, Line.CreateUnbound(new XYZ(0, 0, 0), new XYZ(1, 0, 0))) == true).OrderBy(t => t.Value.GetEndPoint(0).X).Select(t => t.Value).FirstOrDefault();
             if (Xmin != null && Ymax != null)
             {
                 XYZ CADPoint = new XYZ(Xmin.GetEndPoint(0).X, Ymax.GetEndPoint(0).Y, doc.ActiveView.GenLevel.Elevation);
@@ -296,16 +362,26 @@ namespace CreateColumn
             }
         }
         //設定新類型尺寸
-        public static void SetDimensions(FamilySymbol newSymbol, int width, int height)
+        public static void SetDimensions(FamilySymbol newSymbol, double width, double height)
         {
             string[] widthParam = { "b", "Width" };
             string[] heightParam = { "h", "Height" };
+            var s = UnitTypeId.Millimeters;
+            switch (Rsize)
+            {
+                case "公分":
+                    s = UnitTypeId.Centimeters;
+                    break;
+                case "公釐":
+                    s = UnitTypeId.Millimeters;
+                    break;
+            }
             foreach (string paraName in widthParam)
             {
                 Autodesk.Revit.DB.Parameter param = newSymbol.LookupParameter(paraName);
                 if (param != null && !param.IsReadOnly)
                 {
-                    param.Set(UnitUtils.ConvertToInternalUnits(width, UnitTypeId.Millimeters));
+                    param.Set(UnitUtils.ConvertToInternalUnits(width,s));
                     break;
                 }
             }
@@ -314,14 +390,13 @@ namespace CreateColumn
                 Autodesk.Revit.DB.Parameter param = newSymbol.LookupParameter(paramName);
                 if (param != null && !param.IsReadOnly)
                 {
-                    param.Set(UnitUtils.ConvertToInternalUnits(height, UnitTypeId.Millimeters));
+                    param.Set(UnitUtils.ConvertToInternalUnits(height, s));
                     break;
                 }
             }
         }
         public static FamilySymbol FindColumnFamilySymbol(Document doc, TextInfo sizeinfo)
         {
-            // 尋找結構柱族群，優先順序：RC_矩形柱 > 任何結構柱
             FilteredElementCollector collector = new FilteredElementCollector(doc);
             var columnSymbols = collector
                 .OfClass(typeof(FamilySymbol))
@@ -329,15 +404,14 @@ namespace CreateColumn
                 .Cast<FamilySymbol>()
                 .ToList();
             string Lable = Regex.Match(sizeinfo.Content, symble).Value;
-            // 優先找RC_矩形柱
-            var rcColumn = columnSymbols.FirstOrDefault(fs => fs.Family.Name.Contains("RC_矩形柱")
-                            && fs.Name.Contains(Lable + "_" + sizeinfo.texWidth / 10 + "x" + sizeinfo.texHeight / 10 + "cm"));
-            if (rcColumn != null) return ActivateSymbol(rcColumn);
+            var useColumn = columnSymbols.FirstOrDefault(fs => fs.Family.Name.Contains(usingCol)
+                            && fs.Name.Contains(Lable + "_" + sizeinfo.texWidth / tran + "x" + sizeinfo.texHeight / tran + Csize));
+            if (useColumn != null) return ActivateSymbol(useColumn);
             else
             {
-                var DurcColumn = columnSymbols.FirstOrDefault(fs => fs.Family.Name.Contains("RC"));
+                var duColumn = columnSymbols.FirstOrDefault(fs => fs.Family.Name.Contains(usingCol));
                 FamilySymbol columnT = CreateType(doc, sizeinfo.texWidth, sizeinfo.texHeight,
-                            Lable + "_" + (sizeinfo.texWidth / 10) + "x" + (sizeinfo.texHeight / 10) + "cm", DurcColumn);
+                            Lable + "_" + (sizeinfo.texWidth / tran) + "x" + (sizeinfo.texHeight / tran) + Csize, duColumn);
                 return ActivateSymbol(columnT);
             }
         }
@@ -350,15 +424,14 @@ namespace CreateColumn
                 .Cast<FamilySymbol>()
                 .ToList();
             string Lable = Regex.Match(sizeinfo.Content, symble).Value;
-            // 優先找RC_矩形樑
-            var rcBeam = BeamSymbols.FirstOrDefault(fs => fs.Family.Name.Contains("RC_矩形樑")
-                            && fs.Name.Contains(Lable + "_" + sizeinfo.texWidth / 10 + "x" + sizeinfo.texHeight / 10 + "cm"));
-            if (rcBeam != null) return ActivateSymbol(rcBeam);
+            var useBeam = BeamSymbols.FirstOrDefault(fs => fs.Family.Name.Contains(usingBeam)
+                            && fs.Name.Contains(Lable + "_" + sizeinfo.texWidth / tran + "x" + sizeinfo.texHeight / tran + Csize));
+            if (useBeam != null) return ActivateSymbol(useBeam);
             else
             {
-                var DurcBeam = BeamSymbols.FirstOrDefault(fs => fs.Family.Name.Contains("RC"));
+                var duBeam = BeamSymbols.FirstOrDefault(fs => fs.Family.Name.Contains(usingBeam));
                 FamilySymbol BeamT = CreateType(doc, sizeinfo.texWidth, sizeinfo.texHeight,
-                            Lable + "_" + (sizeinfo.texWidth / 10) + "x" + (sizeinfo.texHeight / 10) + "cm", DurcBeam);
+                                        Lable + "_" + (sizeinfo.texWidth / tran) + "x" + (sizeinfo.texHeight / tran) + Csize, duBeam);
                 return ActivateSymbol(BeamT);
             }
         }
@@ -407,43 +480,56 @@ namespace CreateColumn
             }
             if (Frametextinf.Count != 0)
             {
-
                 Dictionary<Line, TextInfo> centerlins = new Dictionary<Line, TextInfo>();
                 foreach (TextInfo size in Frametextinf)
                 {
                     try
                     {
-                        Getstruinfo(size);
+                        Result r = Getstruinfo(size);
+                        if (r == Result.Failed) continue;
                         Lineinf NearestLine = FindnearestScatterLine(size);
-                        //if (NearestLine.used == true) continue;
-                        //else scatterLinedict.Keys.FirstOrDefault(i => i.Equals(NearestLine)).used = true;
                         Lineinf MatchNearestLine = new Lineinf { Lineset = null, used = false };
                         double width = 0;
-                        (width, MatchNearestLine.Lineset) = getNearestLine(NearestLine.Lineset, scatterLinedict.Select(i => i.Key).ToList());
-                        if (Math.Abs(width - size.texWidth * k / 10) > _tolerance) continue;
+                        (width, MatchNearestLine.Lineset) = getNearestLine(NearestLine.Lineset, scatterLinedict.Select(i => i.Key).ToList(), size.texWidth);
                         if (width != double.MaxValue && width > _tolerance)
                         {
-                            //scatterLinedict.Keys.FirstOrDefault(i => i.Equals(NearestLine)).used = true;
-                            Line Lline = NearestLine.Lineset.Length >= MatchNearestLine.Lineset.Length ? NearestLine.Lineset : MatchNearestLine.Lineset;
-                            Line Sline = NearestLine.Lineset.Length < MatchNearestLine.Lineset.Length ? NearestLine.Lineset : MatchNearestLine.Lineset;
-                            if (!Lline.Direction.IsAlmostEqualTo(Sline.Direction)) Sline = Line.CreateBound(Sline.GetEndPoint(1), Sline.GetEndPoint(0));
-                            //Line center = Line.CreateBound((Lline.GetEndPoint(0) + Sline.GetEndPoint(0)) / 2,
-                            //                               (Lline.GetEndPoint(1) + Sline.GetEndPoint(1)) / 2);
-                            //if (!CheckBoxSameLine(center, centerlins.Select(i => i.Key).ToList())) centerlins.Add(center, size);
-
-
-                            XYZ vec = (Sline.GetEndPoint(0) + Sline.GetEndPoint(1)) / 2 - Lline.Project((Sline.GetEndPoint(0) + Sline.GetEndPoint(1)) / 2).XYZPoint;
-                            double offsetLength = vec.GetLength();
-                            if (Lline.Direction.X * vec.Y - Lline.Direction.Y * vec.X > 0) offsetLength = -offsetLength;
-                            Curve offsetline = (Lline.CreateOffset(offsetLength / 2, XYZ.BasisZ));
+                            Curve offsetline = OffsetFromTwoLine(MatchNearestLine, NearestLine);
                             if (!CheckBoxSameLine(offsetline as Line, centerlins.Select(i => i.Key).ToList()))
                                 centerlins.Add(offsetline as Line, size);
+                            scatterLinedict.Remove(NearestLine);
+                            //scatterLinedict.Remove(scatterLinedict.Keys.FirstOrDefault(k => k.Lineset.Equals(MatchNearestLine.Lineset)));
                         }
                     }
                     catch
                     {
                         continue;
                     }
+                }
+                if (BIF == true && scatterLinedict.Count > 0)
+                {
+                    List<Lineinf> scatterkeys = scatterLinedict.Select(i => i.Key).ToList();
+                    foreach (Lineinf lineinf in scatterkeys)
+                    {
+                        if (!scatterLinedict.ContainsKey(lineinf)) continue;
+                        Lineinf MatchNearestLine = new Lineinf { Lineset = null, used = false };
+                        double width = 0;
+                        TextInfo BIFsize = new TextInfo { Content = "版中梁" };
+                        Getstruinfo(BIFsize);
+                        (width, MatchNearestLine.Lineset) = getNearestLine(lineinf.Lineset, scatterLinedict.Select(i => i.Key).ToList(), BIFsize.texWidth);
+                        if (Math.Abs(width - BIFsize.texWidth * k / tran) > _tolerance) continue;
+                        if (width != double.MaxValue && width > _tolerance)
+                        {
+                            Curve offsetline = OffsetFromTwoLine(MatchNearestLine, lineinf);
+                            if (!CheckBoxSameLine(offsetline as Line, centerlins.Select(i => i.Key).ToList()))
+                                centerlins.Add(offsetline as Line, BIFsize);
+                            scatterLinedict.Remove(lineinf);
+                            //scatterLinedict.Remove(scatterLinedict.Keys.FirstOrDefault(k => k.Lineset.Equals(MatchNearestLine.Lineset)));
+                            if (scatterLinedict.Count < 2) break;
+
+                        }
+
+                    }
+                    messag += "已執行建造版中梁，也許有部分不屬於版中梁之建築被套用於此規則 \n";
                 }
                 if (centerlins.Count > 0)
                 {
@@ -473,6 +559,17 @@ namespace CreateColumn
             scatterLinedict = new Dictionary<Lineinf, string>();
             midlinedict = new Dictionary<Line, string>();
             return 0;
+        }
+        public Curve OffsetFromTwoLine(Lineinf line1, Lineinf line2)
+        {
+            Line Lline = line1.Lineset.Length >= line2.Lineset.Length ? line1.Lineset : line2.Lineset;
+            Line Sline = line1.Lineset.Length < line2.Lineset.Length ? line1.Lineset : line2.Lineset;
+            if (!Lline.Direction.IsAlmostEqualTo(Sline.Direction)) Sline = Line.CreateBound(Sline.GetEndPoint(1), Sline.GetEndPoint(0));
+            XYZ vec = (Sline.GetEndPoint(0) + Sline.GetEndPoint(1)) / 2 - Lline.Project((Sline.GetEndPoint(0) + Sline.GetEndPoint(1)) / 2).XYZPoint;
+            double offsetLength = vec.GetLength();
+            if (Lline.Direction.X * vec.Y - Lline.Direction.Y * vec.X > 0) offsetLength = -offsetLength;
+            Curve offsetline = (Lline.CreateOffset(offsetLength / 2, XYZ.BasisZ));
+            return offsetline;
         }
         public Line changeGenLevel(Line centerline, double height)
         {
@@ -524,7 +621,7 @@ namespace CreateColumn
                     XYZ end = new XYZ(line.GetEndPoint(1).X, line.GetEndPoint(1).Y, targetZ);
                     uniqueLines[i].Lineset = Line.CreateBound(start, end);
                 }
-                if (coordinates.Last().IsAlmostEqualTo(coordinates[0])) goto pass;
+                if (uniqueLines.Last().Lineset.GetEndPoint(1).IsAlmostEqualTo(uniqueLines.First().Lineset.GetEndPoint(0))) goto pass;
                 scatterLine:
                 foreach (Lineinf lineinf in uniqueLines)
                 {
@@ -544,27 +641,6 @@ namespace CreateColumn
                         createstrutrue(doc, 0, type, point, null); //創建柱子
                     }
                 }
-                //else if (Isrectangle(uniqueCoordinates/*, polyline*/) == "more")
-                //{
-                //    List<Line> centerlines = Getcenter(doc, uniqueLines, uniqueCoordinates);
-                //    foreach (Line centerline in centerlines)
-                //    {
-                //        try
-                //        {
-                //            XYZ middle = (centerline.GetEndPoint(0) + centerline.GetEndPoint(1)) / 2;          //中心線的中點
-                //            double angle = Math.Atan(centerline.Direction.Y / centerline.Direction.X);
-                //            createstrutrue(doc, angle, type, middle, centerline);
-                //        }
-                //        catch
-                //        {
-                //            continue;
-                //        }
-                //    }
-                //}
-                //else /*if (Isrectangle(uniqueCoordinates) == "false")*/
-                //{
-                //    goto scatterLine;
-                //}
             }
             catch (Exception ex)
             {
@@ -581,10 +657,7 @@ namespace CreateColumn
                 try
                 {
                     Lineinf lineinf = new Lineinf { Lineset = null, used = false };
-                    if (i == uniqueCoordinates.Count - 1 && uniqueCoordinates[i].IsAlmostEqualTo(uniqueCoordinates[0])) //最後一條封閉線段
-                    {
-                        break;
-                    }
+                    if (i!=0&&uniqueCoordinates[i].IsAlmostEqualTo(uniqueCoordinates[0])) break; //最後一條封閉線段
                     lineinf.Lineset = Line.CreateBound(uniqueCoordinates[i], uniqueCoordinates[i + 1]);
                     if (i == 0) goto ADD;
                     //同一邊上有兩條線
@@ -683,38 +756,41 @@ namespace CreateColumn
             }
             return points.Take(4).ToList(); // 備用方案
         }
-        public static void Getstruinfo(TextInfo textInfo)
+        public static Result Getstruinfo(TextInfo textInfo)
         {
             var matchtext = Regex.Match(textInfo.Content, pattern, RegexOptions.IgnoreCase); //找"__x__"
             if (matchtext.Success)
             {
                 //textInfo.prefix = matchtext.Groups[1].Value;
-                textInfo.texWidth = int.Parse(matchtext.Groups[1].Value, CultureInfo.InvariantCulture) * 10;
-                textInfo.texHeight = int.Parse(matchtext.Groups[2].Value, CultureInfo.InvariantCulture) * 10;
+                textInfo.texWidth = int.Parse(matchtext.Groups[1].Value, CultureInfo.InvariantCulture) * tran;
+                textInfo.texHeight = int.Parse(matchtext.Groups[2].Value, CultureInfo.InvariantCulture) * tran;
+                return Result.Succeeded;
+
             }
             else
             {
                 if (TextDict.Count == 0)
                 {
                     var result = getTextdiction();
-                    if (result == Result.Failed) return;
+                    if (result == Result.Failed) return Result.Failed;
                 }
                 foreach (string key in TextDict.Keys.Where(i => i != null))
                 {
                     try
                     {
-                        string letters = Regex.Match(textInfo.Content, $@"^{key}").Value;
+                        string letters = Regex.Match(textInfo.Content, $@"^{key}$").Value;
                         if (letters == "") continue;
                         Getstruinfo(TextDict[letters]);
                         textInfo.texWidth = TextDict[letters].texWidth;
                         textInfo.texHeight = TextDict[letters].texHeight;
-                        break;
+                        return Result.Succeeded;
                     }
                     catch
                     {
                         continue;
                     }
                 }
+                return Result.Failed;
             }
         }
         public static TextInfo FindnearestMtext(XYZ strucpoint, List<TextInfo> textsinfo, double angle)
@@ -723,9 +799,11 @@ namespace CreateColumn
             TextInfo nearestMtext = null;
             foreach (TextInfo text in textsinfo.Where(i => (Math.Abs(i.Rotation % radian - Math.Abs((angle + radian) % radian))) < 1))
             {
+                if (text.Content == "") continue;
                 double distance = CalculateDistance(text.Position, strucpoint, k);
                 if (distance < mindis)
                 {
+                    if (Regex.Match(text.Content, pattern).Success == false && Regex.Match(text.Content, $@"^{Dictrule}$").Success == false) continue;
                     mindis = distance;
                     nearestMtext = text;
                 }
@@ -766,6 +844,23 @@ namespace CreateColumn
             var Dside1 = Line.CreateBound((rectangle[0] + rectangle[3]) / 2, (rectangle[1] + rectangle[2]) / 2);
             var Dside2 = Line.CreateBound((rectangle[0] + rectangle[1]) / 2, (rectangle[2] + rectangle[3]) / 2);
             return Dside1.Length >= Dside2.Length ? Dside1 : Dside2;
+        }
+        public static (ObservableCollection<string>, ObservableCollection<string>) Getsymbol(ExternalCommandData commandData)
+        {
+            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var symbol_colcollector = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                .Cast<FamilySymbol>()
+                .ToList();
+            var symbol_beamcollector = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                .Cast<FamilySymbol>()
+                .ToList();
+            List<string> symbolcols = symbol_colcollector.Where(x => x.Category.Name.Equals("結構柱")).Select(y => y.Family.Name).ToList().Distinct().OrderBy(n => n).ToList();
+            List<string> symbolbeams = symbol_beamcollector.Where(x => x.Category.Name.Equals("結構構架")).Select(y => y.Family.Name).ToList().Distinct().OrderBy(n => n).ToList();
+            return (new ObservableCollection<string>(symbolcols), new ObservableCollection<string>(symbolbeams));
         }
         public static string GetCADFilePath()
         {
@@ -817,8 +912,8 @@ namespace CreateColumn
             public string LayerName { get; set; }
             public CSMath.XYZ Position { get; set; }
             public double Height { get; set; }
-            public int texWidth { get; set; }
-            public int texHeight { get; set; }
+            public double texWidth { get; set; }
+            public double texHeight { get; set; }
             public string prefix { get; set; }
             public double Rotation { get; set; }
             //public string StyleName { get; set; }
@@ -842,6 +937,7 @@ namespace CreateColumn
                     {
                         if (entity is TextEntity text)
                         {
+
                             TextInfo info = new TextInfo
                             {
                                 Content = text.Value,
@@ -862,7 +958,11 @@ namespace CreateColumn
                                 Height = mtext.Height,
                                 Rotation = mtext.Rotation,
                             };
+
                             textinfos.Add(info);
+                            if (!info.LayerName.Equals(sizedataLayer[0])) continue;
+                            if (info.Content.Contains("mm")) Csize = "mm";
+                            if (info.Content.Contains("cm")) Csize = "cm";
                         }
                         else if (entity is ACadSharp.Entities.Line line)
                         {
@@ -899,7 +999,7 @@ namespace CreateColumn
             foreach (Lineinf lineinf in sidelines)
             {
                 Line nearestline = null;
-                (width, nearestline) = getNearestLine(lineinf.Lineset, sidelines);
+                (width, nearestline) = getNearestLine(lineinf.Lineset, sidelines, 0);
                 if (width <= 0) continue;
                 Line centerline = createcenterline(lineinf.Lineset, nearestline, currentView);
 
@@ -1009,7 +1109,7 @@ namespace CreateColumn
             bool directionsAligned = Math.Abs(Math.Abs(dotProduct) - 1) < tolerance;
             return directionsAligned;
         }
-        public static (double, Line) getNearestLine(Line line, List<Lineinf> linelist)
+        public static (double, Line) getNearestLine(Line line, List<Lineinf> linelist, double texwidth)
         {
             Line nearest = null;
             double minDistance = double.MaxValue;
@@ -1025,8 +1125,16 @@ namespace CreateColumn
                     double distance = result1.Distance <= result2.Distance ? result1.Distance : result2.Distance;
                     if (distance < minDistance - _tolerance && distance > _tolerance && checkcontainline(line, linelist[i].Lineset, distance))
                     {
-                        minDistance = distance;
-                        nearest = linelist[i].Lineset;
+                        if (texwidth != 0 && Math.Abs(distance - texwidth * k/tran) < _tolerance)
+                        {
+                            minDistance = distance;
+                            nearest = linelist[i].Lineset;
+                        }
+                        //else if (texwidth == 0)
+                        //{
+                            //minDistance = distance;
+                            //nearest = linelist[i].Lineset;
+                        //}
                     }
                 }
             }
@@ -1182,18 +1290,19 @@ namespace CreateColumn
         {
             if (DictText.Count == 0)
             {
-                messag = ("部分結構未取得對應尺寸，將導致構建失敗");
+                messag += ("部分結構未取得對應尺寸，將導致構建失敗");
                 return Result.Failed;
             }
             foreach (TextInfo size in DictText.Where(i => Regex.Match(i.Content, pattern).Success))
             {
-                foreach (TextInfo text in DictText.Where(j => Regex.Match(j.Content, Dictrule, RegexOptions.IgnoreCase).Success))
+                foreach (TextInfo text in DictText.Where(j => Regex.Match(j.Content, Dictrule, RegexOptions.IgnoreCase).Success || Regex.Match(j.Content, BeaminFloor).Success))
                 {
                     if (text == size) continue;
                     try
                     {
-                        var matchdict = Regex.Match(text.Content, Dictrule, RegexOptions.IgnoreCase);
-                        if (Math.Abs(size.Position.Y - text.Position.Y) <= 50 && Math.Abs(size.Position.X - text.Position.X) <= 1600)
+                        var matchdict = Regex.Match(text.Content, Dictrule, RegexOptions.IgnoreCase);  //**
+                        if (matchdict.Success == false && BIF == true) matchdict = Regex.Match(text.Content, BeaminFloor);
+                        if (Math.Abs(size.Position.Y - text.Position.Y) <= 50&& Math.Abs(size.Position.X - text.Position.X) <= 2000)
                         {
                             for (int i = 1; i < matchdict.Groups.Count; i++)
                             {
@@ -1242,7 +1351,8 @@ namespace CreateColumn
             if (type == "column")
             {
                 var sizetext = FindnearestMtext(middle, Coltextinf, angle);
-                Getstruinfo(sizetext); // 獲取尺寸信息
+                sizetext.Content = Regex.Match(sizetext.Content,Dictrule).Value;
+                Result r = Getstruinfo(sizetext); // 獲取尺寸信息
 
 
                 FamilySymbol Symbol = FindColumnFamilySymbol(doc, sizetext);
@@ -1255,7 +1365,7 @@ namespace CreateColumn
             else if (type == "beam")
             {
                 var sizetext = FindnearestMtext(middle, Frametextinf, angle);
-                Getstruinfo(sizetext); // 獲取尺寸信息
+                Result r = Getstruinfo(sizetext); // 獲取尺寸信息
 
                 FamilySymbol Symbol = FindBeamFamilySymbol(doc, sizetext);
                 FamilyInstance structure = doc.Create.NewFamilyInstance(

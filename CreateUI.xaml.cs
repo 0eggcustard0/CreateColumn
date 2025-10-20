@@ -8,10 +8,10 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Data;
 using ACadSharp;
 using ACadSharp.IO;
+using Autodesk.Revit.UI;
 
 namespace CreateColumn
 {
@@ -21,12 +21,13 @@ namespace CreateColumn
 
     public partial class SettingLayer : Window
     {
+        private static ExternalCommandData CommandData;
         private static SettingLayer _instance;
         public static SettingLayer Instance
         {
             get
             {
-                if (_instance == null || !_instance.IsLoaded)
+                if (_instance == null)
                 {
                     _instance = new SettingLayer();
                 }
@@ -37,9 +38,11 @@ namespace CreateColumn
         {
             InitializeComponent();
             DataContext = new SettingPriorityViewModel();
+            Get_symbol(CommandData);
         }
-        public static void ShowInstance()
+        public static void ShowInstance(ExternalCommandData commandData)
         {
+            CommandData = commandData;
             var instance = Instance;
             if (!instance.IsVisible)
             {
@@ -58,10 +61,11 @@ namespace CreateColumn
         }
         public class SettingPriorityViewModel : INotifyPropertyChanged
         {
-            public Dictionary<string, string> choosing { get; set; }
+            public Dictionary<string, string> choosing = new Dictionary<string, string>();
             private string _filepath = "";
             private string _path = "";
             private string _selectedLayer = "";
+            private bool _needBIF = false;
             private ObservableCollection<string> _layerList = new ObservableCollection<string>();
             private ObservableCollection<string> _columnLayer = new ObservableCollection<string>();
             private ObservableCollection<string> _columnTextLayer = new ObservableCollection<string>();
@@ -70,6 +74,27 @@ namespace CreateColumn
             private ObservableCollection<string> _gridLayer = new ObservableCollection<string>();
             private ObservableCollection<string> _gridTextLayer = new ObservableCollection<string>();
             private ObservableCollection<string> _dictLayer = new ObservableCollection<string>();
+            private ObservableCollection<string> _symbolcollist = new ObservableCollection<string>();
+            private ObservableCollection<string> _symbolbeamlist = new ObservableCollection<string>();
+
+            public ObservableCollection<string> Symbolcollist
+            {
+                get => _symbolcollist;
+                set
+                {
+                    SetProperty(ref _symbolcollist, value);
+                    OnPropertyChanged();
+                }
+            }
+            public ObservableCollection<string> Symbolbeamlist
+            {
+                get => _symbolbeamlist;
+                set
+                {
+                    SetProperty(ref _symbolbeamlist, value);
+                    OnPropertyChanged();
+                }
+            }
             public string Filepath
             {
                 get => _filepath;
@@ -86,6 +111,15 @@ namespace CreateColumn
                 set
                 {
                     SetProperty(ref _selectedLayer, value);
+                    OnPropertyChanged();
+                }
+            }
+            public bool NeedBIF
+            {
+                get => _needBIF;
+                set
+                {
+                    SetProperty(ref _needBIF, value);
                     OnPropertyChanged();
                 }
             }
@@ -165,6 +199,7 @@ namespace CreateColumn
             {
                 get => string.Join("\n", _dictLayer);
             }
+
             protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
             {
                 field = value;
@@ -177,6 +212,11 @@ namespace CreateColumn
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             }
         }
+        public void Get_symbol(ExternalCommandData commandData)
+        {
+            SettingPriorityViewModel viewModel = DataContext as SettingPriorityViewModel;
+            (viewModel.Symbolcollist, viewModel.Symbolbeamlist) = CreateColumn.AutoCreate.Getsymbol(commandData);
+        }
         public void Get_Path(object sender, RoutedEventArgs e)
         {
             try
@@ -184,18 +224,16 @@ namespace CreateColumn
                 SettingPriorityViewModel viewModel = DataContext as SettingPriorityViewModel;
                 if (viewModel != null)
                 {
-                    viewModel.choosing = new Dictionary<string, string>();
                     string path = CreateColumn.AutoCreate.GetCADFilePath();
                     if (path == null)
                     {
-                        MessageBox.Show("未選取CAD檔案");
+                        MessageBox.Show("未選取CAD檔案", "警告");
                         return;
                     }
                     else
                     {
                         viewModel.Path = path;
                     }
-
                     viewModel.Filepath = "CAD圖檔名稱:" + viewModel.Path;
                     CadDocument document;
                     var reader = new DwgReader(viewModel.Path);
@@ -204,13 +242,41 @@ namespace CreateColumn
                      .Select(layer => layer.Name)
                      .OrderBy(name => name)
                      .ToList();
-                    if (viewModel.LayerList.Count == 0) viewModel.LayerList = new ObservableCollection<string>(layerNames);
-                    foreach (string layer in viewModel.LayerList)
+                    if (layerNames.Count == 0) MessageBox.Show("請檢查開啟的檔案是否為.dwg檔,以及該檔案是否處於關閉狀態。");
+                    if (viewModel.LayerList.Count == 0)
                     {
-                        if (!layerNames.Contains(layer))
+                        viewModel.LayerList = new ObservableCollection<string>(layerNames);
+                        return;
+                    }
+                    else
+                    {
+                        foreach (string layer in viewModel.LayerList)
                         {
-                            DataContext = new SettingPriorityViewModel();
-                            break;
+                            if (!layerNames.Contains(layer))
+                            {
+                                viewModel = DataContext as SettingPriorityViewModel;
+                                viewModel.Path = path;
+
+                                viewModel.LayerList = new ObservableCollection<string>(layerNames.Where(i => !viewModel.ColumnLayer.Contains(i) &&
+                                                                                                           !viewModel.BeamLayer.Contains(i) &&
+                                                                                                           !viewModel.ColumnTextLayer.Contains(i) &&
+                                                                                                           !viewModel.BeamTextLayer.Contains(i) &&
+                                                                                                           !viewModel.GridLayer.Contains(i) &&
+                                                                                                           !viewModel.GridTextLayer.Contains(i) &&
+                                                                                                           !viewModel.DictLayer.Contains(i)).ToList());
+                                viewModel.choosing.Remove("ColumnLayer");
+                                viewModel.choosing.Remove("BeamLayer");
+                                viewModel.choosing.Remove("ColumnTextLayer");
+                                viewModel.choosing.Remove("BeamTextLayer");
+                                viewModel.choosing.Remove("GridLayer");
+                                viewModel.choosing.Remove("GridTextLayer");
+                                viewModel.choosing.Remove("DictLayer");
+
+
+                                //viewModel.OnPropertyChanged(viewModel.Path);
+                                return;
+                            }
+
                         }
                     }
                 }
@@ -233,74 +299,83 @@ namespace CreateColumn
 
                 PropertyInfo property = viewModel.GetType().GetProperty(position);
                 ObservableCollection<string> targetArray = property.GetValue(viewModel) as ObservableCollection<string>;
-                switch (action)
+                try
                 {
-                    case "Plus":
-                        if (targetArray.Contains(viewModel.SelectedLayer) || viewModel.SelectedLayer == "") break;
-                        targetArray.Add(viewModel.SelectedLayer);
-                        viewModel.OnPropertyChanged(property.Name);
-                        var newPlusLayerList = new ObservableCollection<string>(viewModel.LayerList);
-                        newPlusLayerList.Remove(viewModel.SelectedLayer);
-                        viewModel.LayerList = newPlusLayerList;
-                        viewModel.SelectedLayer = "";
-                        break;
-                    case "Minus":
-                        if (viewModel.choosing.Count == 0 || viewModel.choosing[property.Name] == null) break;
-                        string choose = viewModel.choosing[property.Name];
-                        var newMinusLayerList = new ObservableCollection<string>(viewModel.LayerList);
-                        newMinusLayerList.Add(viewModel.choosing[property.Name]);
-                        targetArray.Remove(choose);
-                        viewModel.OnPropertyChanged(property.Name);
-                        viewModel.LayerList = new ObservableCollection<string>(newMinusLayerList.OrderBy(name => name));
-                        break;
+                    switch (action)
+                    {
+                        case "Plus":
+                            if (targetArray.Contains(viewModel.SelectedLayer) || viewModel.SelectedLayer == "") break;                            
+                            targetArray.Add(viewModel.SelectedLayer);
+                            viewModel.OnPropertyChanged(property.Name);
+                            var newPlusLayerList = new ObservableCollection<string>(viewModel.LayerList);
+                            newPlusLayerList.Remove(viewModel.SelectedLayer);
+                            viewModel.LayerList = newPlusLayerList;
+                            viewModel.SelectedLayer = "";
+                            break;
+                        case "Minus":
+
+                            if (viewModel.choosing.Count == 0 || viewModel.choosing[property.Name] == null) break;
+                            string choose = viewModel.choosing[property.Name];
+                            var newMinusLayerList = new ObservableCollection<string>(viewModel.LayerList);
+                            newMinusLayerList.Add(viewModel.choosing[property.Name]);
+                            targetArray.Remove(choose);
+                            viewModel.OnPropertyChanged(property.Name);
+                            viewModel.LayerList = new ObservableCollection<string>(newMinusLayerList.OrderBy(name => name));
+                            break;
+                    }
+                }
+                catch
+                {
+                    return;
                 }
             }
         }
         private void SelectAction(object s, RoutedEventArgs e)
         {
             SettingPriorityViewModel viewModel = DataContext as SettingPriorityViewModel;
-            if (s is ComboBox box)
+            if (s is System.Windows.Controls.ComboBox box)
             {
                 PropertyInfo property = viewModel.GetType().GetProperty(box.Name);
                 string arrayname = property.Name;
-                if (viewModel.choosing != null)
+                
+                if (viewModel.choosing.ContainsKey(arrayname) != true)
                 {
-                    if (viewModel.choosing.ContainsKey(arrayname) != true)
-                    {
-                        viewModel.choosing.Add(arrayname, box.SelectedItem.ToString());
-                    }
-                    else
-                    {
-                        var key = viewModel.choosing.Keys.FirstOrDefault(k => k == arrayname);
-                        if (key != null)
-                        {
-                            viewModel.choosing[key] = box.SelectedItem?.ToString();
-                        }
-                    }
+                    viewModel.choosing.Add(arrayname, box.SelectedItem.ToString());
                 }
                 else
                 {
-                    MessageBox.Show("未選取欲執行的圖層");
-                }
+                    var key = viewModel.choosing.Keys.FirstOrDefault(k => k == arrayname);
+                    if (key != null)
+                    {
+                        viewModel.choosing[key] = box.SelectedItem?.ToString();
+                    }
+                }                
             }
         }
         private void create(object s, RoutedEventArgs e)
         {
             var viewmodel = DataContext as SettingPriorityViewModel;
-            if (viewmodel.ColumnLayer.Count == 0 || viewmodel.ColumnTextLayer.Count == 0 || viewmodel.BeamLayer.Count == 0 || viewmodel.BeamTextLayer.Count == 0 || viewmodel.GridLayer.Count == 0 || viewmodel.GridTextLayer.Count == 0)
+            if ((viewmodel.ColumnLayer.Count == 0 && viewmodel.ColumnTextLayer.Count == 0 &&
+                viewmodel.BeamLayer.Count == 0 && viewmodel.BeamTextLayer.Count == 0 &&
+                viewmodel.GridLayer.Count == 0 && viewmodel.GridTextLayer.Count == 0) ||
+                (viewmodel.choosing.ContainsKey("Symbolcollist") == false || viewmodel.choosing["Symbolcollist"] == null) ||
+                (viewmodel.choosing.ContainsKey("Symbolbeamlist") == false || viewmodel.choosing["Symbolbeamlist"] == null))
             {
-                MessageBox.Show("尚有結構圖層未設定");
+                MessageBox.Show("尚有設定未完成", "警告");
+            }
+            else if (viewmodel.ColumnLayer.Count == 0 || viewmodel.ColumnTextLayer.Count == 0 ||
+                    viewmodel.BeamLayer.Count == 0 || viewmodel.BeamTextLayer.Count == 0 || 
+                    viewmodel.GridLayer.Count == 0 || viewmodel.GridTextLayer.Count == 0)
+            {
+                MessageBox.Show("圖層設定並未完全，將導致建構出現缺陷。", "警告");
+                App.handler.ViewModel = viewmodel;
+                App.CreateEvent.Raise();
             }
             else
             {
                 App.handler.ViewModel = viewmodel;
                 App.CreateEvent.Raise();
             }
-
-        }
-        private void OpenTurtorial(object s, RoutedEventArgs e)
-        {
-            MessageBox.Show("");
         }
     }
     public class CollectionToStringConverter : IValueConverter
