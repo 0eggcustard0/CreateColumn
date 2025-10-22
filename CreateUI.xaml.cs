@@ -222,69 +222,83 @@ namespace CreateColumn
             try
             {
                 SettingPriorityViewModel viewModel = DataContext as SettingPriorityViewModel;
-                if (viewModel != null)
+                if (viewModel == null) return;
+
+                string path = CreateColumn.AutoCreate.GetCADFilePath();
+                if (path == null)
                 {
-                    string path = CreateColumn.AutoCreate.GetCADFilePath();
-                    if (path == null)
-                    {
-                        MessageBox.Show("未選取CAD檔案", "警告");
-                        return;
-                    }
-                    else
-                    {
-                        viewModel.Path = path;
-                    }
-                    viewModel.Filepath = "CAD圖檔名稱:" + viewModel.Path;
-                    CadDocument document;
-                    var reader = new DwgReader(viewModel.Path);
-                    document = reader.Read();
-                    var layerNames = document.Layers
-                     .Select(layer => layer.Name)
-                     .OrderBy(name => name)
-                     .ToList();
-                    if (layerNames.Count == 0) MessageBox.Show("請檢查開啟的檔案是否為.dwg檔,以及該檔案是否處於關閉狀態。");
-                    if (viewModel.LayerList.Count == 0)
-                    {
-                        viewModel.LayerList = new ObservableCollection<string>(layerNames);
-                        return;
-                    }
-                    else
-                    {
-                        foreach (string layer in viewModel.LayerList)
-                        {
-                            if (!layerNames.Contains(layer))
-                            {
-                                viewModel = DataContext as SettingPriorityViewModel;
-                                viewModel.Path = path;
+                    MessageBox.Show("未選取CAD檔案", "警告");
+                    return;
+                }
 
-                                viewModel.LayerList = new ObservableCollection<string>(layerNames.Where(i => !viewModel.ColumnLayer.Contains(i) &&
-                                                                                                           !viewModel.BeamLayer.Contains(i) &&
-                                                                                                           !viewModel.ColumnTextLayer.Contains(i) &&
-                                                                                                           !viewModel.BeamTextLayer.Contains(i) &&
-                                                                                                           !viewModel.GridLayer.Contains(i) &&
-                                                                                                           !viewModel.GridTextLayer.Contains(i) &&
-                                                                                                           !viewModel.DictLayer.Contains(i)).ToList());
-                                viewModel.choosing = new Dictionary<string, string>();
-                                //viewModel.choosing.Remove("ColumnLayer");
-                                //viewModel.choosing.Remove("BeamLayer");
-                                //viewModel.choosing.Remove("ColumnTextLayer");
-                                //viewModel.choosing.Remove("BeamTextLayer");
-                                //viewModel.choosing.Remove("GridLayer");
-                                //viewModel.choosing.Remove("GridTextLayer");
-                                //viewModel.choosing.Remove("DictLayer");
+                viewModel.Path = path;
+                viewModel.Filepath = "CAD圖檔名稱:" + viewModel.Path;
 
+                // 讀取新的 CAD 檔案
+                CadDocument document;
+                var reader = new DwgReader(viewModel.Path);
+                document = reader.Read();
 
-                                //viewModel.OnPropertyChanged(viewModel.Path);
-                                return;
-                            }
+                var layerNames = document.Layers
+                    .Select(layer => layer.Name)
+                    .OrderBy(name => name)
+                    .ToList();
 
-                        }
-                    }
+                if (layerNames.Count == 0)
+                {
+                    MessageBox.Show("請檢查開啟的檔案是否為.dwg檔,以及該檔案是否處於關閉狀態。");
+                    return;
+                }
+
+                // 第一次載入(沒有舊圖層)
+                if (viewModel.LayerList.Count == 0)
+                {
+                    viewModel.LayerList = new ObservableCollection<string>(layerNames);
+                    return;
+                }
+
+                // 收集所有已選擇的圖層
+                var allSelectedLayers = new List<string>();
+                allSelectedLayers.AddRange(viewModel.ColumnLayer);
+                allSelectedLayers.AddRange(viewModel.BeamLayer);
+                allSelectedLayers.AddRange(viewModel.ColumnTextLayer);
+                allSelectedLayers.AddRange(viewModel.BeamTextLayer);
+                allSelectedLayers.AddRange(viewModel.GridLayer);
+                allSelectedLayers.AddRange(viewModel.GridTextLayer);
+                allSelectedLayers.AddRange(viewModel.DictLayer);
+
+                // 檢查是否所有已選擇的圖層都存在於新圖檔中
+                bool allSelectedLayersExist = allSelectedLayers.All(layer => layerNames.Contains(layer));
+
+                if (!allSelectedLayersExist)
+                {
+                    // 新圖檔不包含所有舊圖層 -> 重置(除了 choosing 族群)
+                    viewModel.ColumnLayer = new ObservableCollection<string>();
+                    viewModel.BeamLayer = new ObservableCollection<string>();
+                    viewModel.ColumnTextLayer = new ObservableCollection<string>();
+                    viewModel.BeamTextLayer = new ObservableCollection<string>();
+                    viewModel.GridLayer = new ObservableCollection<string>();
+                    viewModel.GridTextLayer = new ObservableCollection<string>();
+                    viewModel.DictLayer = new ObservableCollection<string>();
+                    // choosing 不重置
+
+                    // 更新圖層清單為全部新圖層
+                    viewModel.LayerList = new ObservableCollection<string>(layerNames);
+                }
+                else
+                {
+                    // 所有已選擇的圖層都存在 -> 保持選擇,只更新圖層清單
+                    // 移除已選擇的圖層,顯示剩餘可選的
+                    var availableLayers = layerNames
+                        .Where(layer => !allSelectedLayers.Contains(layer))
+                        .ToList();
+
+                    viewModel.LayerList = new ObservableCollection<string>(availableLayers);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-
+                MessageBox.Show($"發生錯誤: {ex.Message}", "錯誤");
             }
         }
         public void plusorminus(object s, RoutedEventArgs e)
@@ -356,13 +370,11 @@ namespace CreateColumn
         private void create(object s, RoutedEventArgs e)
         {
             var viewmodel = DataContext as SettingPriorityViewModel;
-            if ((viewmodel.ColumnLayer.Count == 0 && viewmodel.ColumnTextLayer.Count == 0 &&
-                viewmodel.BeamLayer.Count == 0 && viewmodel.BeamTextLayer.Count == 0 &&
-                viewmodel.GridLayer.Count == 0 && viewmodel.GridTextLayer.Count == 0) ||
-                (viewmodel.choosing.ContainsKey("Symbolcollist") == false || viewmodel.choosing["Symbolcollist"] == null) ||
+            if ((viewmodel.choosing.ContainsKey("Symbolcollist") == false || viewmodel.choosing["Symbolcollist"] == null) ||
                 (viewmodel.choosing.ContainsKey("Symbolbeamlist") == false || viewmodel.choosing["Symbolbeamlist"] == null))
             {
                 MessageBox.Show("尚有設定未完成", "警告");
+                return;
             }
             else if (viewmodel.ColumnLayer.Count == 0 || viewmodel.ColumnTextLayer.Count == 0 ||
                     viewmodel.BeamLayer.Count == 0 || viewmodel.BeamTextLayer.Count == 0 ||
