@@ -238,7 +238,7 @@ namespace CreateColumn
                     CadDocument document;
                     var reader = new DwgReader(viewModel.Path);
                     document = reader.Read();
-                    var layerNames = document.Layers
+                    var layerNames = document.Layers   //新讀取檔案的圖層
                      .Select(layer => layer.Name)
                      .OrderBy(name => name)
                      .ToList();
@@ -250,9 +250,9 @@ namespace CreateColumn
                     }
                     else
                     {
-                        foreach (string layer in viewModel.LayerList)
+                        foreach (string layer in viewModel.LayerList)  //舊圖層
                         {
-                            if (!layerNames.Contains(layer))
+                            if (!layerNames.Contains(layer))    //新圖層 不包含舊的
                             {
                                 viewModel = DataContext as SettingPriorityViewModel;
                                 viewModel.Path = path;
@@ -265,20 +265,28 @@ namespace CreateColumn
                                                                                                            !viewModel.GridTextLayer.Contains(i) &&
                                                                                                            !viewModel.DictLayer.Contains(i)).ToList());
                                 viewModel.choosing = new Dictionary<string, string>();
-                                //viewModel.choosing.Remove("ColumnLayer");
-                                //viewModel.choosing.Remove("BeamLayer");
-                                //viewModel.choosing.Remove("ColumnTextLayer");
-                                //viewModel.choosing.Remove("BeamTextLayer");
-                                //viewModel.choosing.Remove("GridLayer");
-                                //viewModel.choosing.Remove("GridTextLayer");
-                                //viewModel.choosing.Remove("DictLayer");
-
-
-                                //viewModel.OnPropertyChanged(viewModel.Path);
+                                viewModel.ColumnLayer = new ObservableCollection<string>();
+                                viewModel.BeamLayer = new ObservableCollection<string>();
+                                viewModel.ColumnTextLayer = new ObservableCollection<string>();
+                                viewModel.BeamTextLayer = new ObservableCollection<string>();
+                                viewModel.GridLayer = new ObservableCollection<string>();
+                                viewModel.GridTextLayer = new ObservableCollection<string>();
+                                viewModel.DictLayer = new ObservableCollection<string>();
+                                viewModel.LayerList = new ObservableCollection<string>(layerNames);
                                 return;
                             }
 
                         }
+                        layerNames.RemoveAll(item =>
+                                            viewModel.ColumnLayer.Contains(item) ||
+                                            viewModel.BeamLayer.Contains(item) ||
+                                            viewModel.ColumnTextLayer.Contains(item)||
+                                            viewModel.BeamTextLayer.Contains(item) ||
+                                            viewModel.GridLayer.Contains(item) ||
+                                            viewModel.GridTextLayer.Contains(item) ||
+                                            viewModel.DictLayer.Contains(item) 
+                                            );
+                        viewModel.LayerList = new ObservableCollection<string>(layerNames);
                     }
                 }
             }

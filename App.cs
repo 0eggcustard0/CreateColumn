@@ -90,8 +90,8 @@ namespace CreateColumn
         //文字規則
         public static string pattern = "";
         public static string Dictrule = "";
-        public static string BeaminFloor = "";
         public static string symble = "";
+        public static string sizet = "";
         //
         public static Dictionary<Autodesk.Revit.DB.PolyLine, TextInfo> sizedict = new Dictionary<Autodesk.Revit.DB.PolyLine, TextInfo>();
         public static string Userimpath = "";
@@ -130,10 +130,10 @@ namespace CreateColumn
             gridTLayer = CurrentViewModel.GridTextLayer.ToArray();
             sizedataLayer = CurrentViewModel.DictLayer.ToArray();
             //文字規則
-            pattern = @"(\d+)\s*x\s*(\d+)";                                                                                   //尺寸part
-            Dictrule = @"([A-Za-z]+[\-\d]*)\s*(?:(?:或|,)\s*([A-Za-z]+[\-\d]*))?";// @"([A-Za-z]+[\-\d]*)\s*(?:或|,)?\s*([A-Za-z]+\d*)*";     //標籤(編號)part
-            BeaminFloor = @"(版中梁)";
+            pattern = @"(\d+)\s*x\s*(\d+)";
+            Dictrule = @"([A-Za-z]+\d*)\s*(?:或|,)?\s*([A-Za-z]+\d*)*";//@"[A-Za-z]\d*(?:\s*或\s*|\s*,\s*)[A-Za-z]+\d*";
             symble = @"^([^(]*)";
+            sizet = @"([A-Za-z]*\d+)";
 
             Userimpath = CurrentViewModel.Path;
             sizedict = new Dictionary<Autodesk.Revit.DB.PolyLine, TextInfo>();
@@ -210,16 +210,15 @@ namespace CreateColumn
                 }
                 GetVector(doc, activeview);  //原點定位偏移
                                              //文字圖層名稱
-                                             //var matchdict = Regex.Match(text.Content, Dictrule, RegexOptions.IgnoreCase);
-                Coltextinf = textinfos.Where(t => colstextLayer.Contains(t.LayerName)).ToList();   //**
-                //foreach (var key in Coltextinf)
-                //{
-                //    var match = Regex.Match(key.Content, Dictrule, RegexOptions.IgnoreCase);
-                //    key.Content = match.Groups[1].Value;
-                //}
-                Coltextinf = Coltextinf.Where(key => key.Content != "f").ToList();
+                Coltextinf = textinfos.Where(t => colstextLayer.Contains(t.LayerName)).ToList();
                 Frametextinf = textinfos.Where(t => framestextLayer.Contains(t.LayerName)).ToList();
                 DictText = textinfos.Where(t => sizedataLayer.Contains(t.LayerName)).ToList();
+                foreach(var tx in DictText)
+                {
+                    var match = Regex.Match(tx.Content,txrule);
+                    if (!match.Success == true) continue;
+                    tx.Content = match.Groups[1].Value;
+                }
 
 
                 DWGImportOptions options = new DWGImportOptions
@@ -324,24 +323,20 @@ namespace CreateColumn
             {
                 try
                 {
-                    var Gridline = CADGridLine.Where(t => Math.Abs(t.StartPoint.X - gridtext.Position.X) < 300 && Math.Abs(t.EndPoint.X - gridtext.Position.X) < 300).FirstOrDefault();
-                    if (Gridline == null) Gridline = CADGridLine.Where(t => Math.Abs(t.StartPoint.Y - gridtext.Position.Y) < 300 && Math.Abs(t.EndPoint.Y - gridtext.Position.Y) < 300).FirstOrDefault();
-                    CGridDict.Add(gridtext.Content, Line.CreateBound(new XYZ(Gridline.StartPoint.X, Gridline.StartPoint.Y, doc.ActiveView.GenLevel.Elevation),
-                                                            new XYZ(Gridline.EndPoint.X, Gridline.EndPoint.Y, doc.ActiveView.GenLevel.Elevation)));
-                    //if (gridtext.Content.Contains("X"))
-                    //{
-                    //    var gridlineX = CADGridLine.Where(t => Math.Abs(t.StartPoint.X - gridtext.Position.X) < 100).FirstOrDefault();
-                    //    XYZ startPoint = new XYZ(gridlineX.StartPoint.X, gridlineX.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
-                    //    XYZ endPoint = new XYZ(gridlineX.EndPoint.X, gridlineX.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
-                    //    CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
-                    //}
-                    //else if (gridtext.Content.Contains("Y"))
-                    //{
-                    //    var gridlineY = CADGridLine.Where(t => Math.Abs(t.StartPoint.Y - gridtext.Position.Y) < 100).FirstOrDefault();
-                    //    XYZ startPoint = new XYZ(gridlineY.StartPoint.X, gridlineY.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
-                    //    XYZ endPoint = new XYZ(gridlineY.EndPoint.X, gridlineY.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
-                    //    CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
-                    //}
+                    if (gridtext.Content.Contains("X"))
+                    {
+                        var gridlineX = CADGridLine.Where(t => Math.Abs(t.StartPoint.X - gridtext.Position.X) < 100).FirstOrDefault();
+                        XYZ startPoint = new XYZ(gridlineX.StartPoint.X, gridlineX.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                        XYZ endPoint = new XYZ(gridlineX.EndPoint.X, gridlineX.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                        CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
+                    }
+                    else if (gridtext.Content.Contains("Y"))
+                    {
+                        var gridlineY = CADGridLine.Where(t => Math.Abs(t.StartPoint.Y - gridtext.Position.Y) < 100).FirstOrDefault();
+                        XYZ startPoint = new XYZ(gridlineY.StartPoint.X, gridlineY.StartPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                        XYZ endPoint = new XYZ(gridlineY.EndPoint.X, gridlineY.EndPoint.Y, doc.ActiveView.GenLevel.Elevation);
+                        CGridDict.Add(gridtext.Content, Line.CreateBound(startPoint, endPoint));
+                    }
                 }
                 catch
                 {
@@ -470,14 +465,16 @@ namespace CreateColumn
                 {
                     ElementId graphicsStyleId = polyline.GraphicsStyleId;
                     (type, layer) = typefilter(graphicsStyleId, doc);
-                    if (type != null) ProcessCurvePolyline(doc, polyline, type, layer);
+                    if (type == null) continue;
+                    ProcessCurvePolyline(doc, polyline, type, layer);
                 }
                 else if (geoObj is Line line)
                 {
                     ElementId graphicsStyleId = line.GraphicsStyleId;
                     (type, layer) = typefilter(graphicsStyleId, doc);
+                    if (type == null) continue;
                     Lineinf lineinf = new Lineinf { Lineset = line, used = false };
-                    if (layer != null) scatterLinedict.Add(lineinf, layer); // 將線段與圖層名稱對應
+                    scatterLinedict.Add(lineinf, layer); // 將線段與圖層名稱對應
                 }
             }
             if (Frametextinf.Count != 0)
@@ -500,43 +497,12 @@ namespace CreateColumn
                             (offsetline,del) = OffsetFromTwoLine(MatchNearestLine, NearestLine);
                             if (!CheckBoxSameLine(offsetline as Line, centerlins.Select(i => i.Key).ToList()))
                                 centerlins.Add(offsetline as Line, size);
-                            //scatterLinedict.Remove(NearestLine);
-                            scatterLinedict.Remove(del);
-                            //scatterLinedict.Remove(scatterLinedict.Keys.FirstOrDefault(k => k.Lineset.Equals(MatchNearestLine.Lineset)));
                         }
                     }
                     catch
                     {
                         continue;
                     }
-                }
-                if (BIF == true && scatterLinedict.Count > 0)
-                {
-                    List<Lineinf> scatterkeys = scatterLinedict.Select(i => i.Key).ToList();
-                    foreach (Lineinf lineinf in scatterkeys)
-                    {
-                        if (!scatterLinedict.ContainsKey(lineinf)) continue;
-                        Lineinf MatchNearestLine = new Lineinf { Lineset = null, used = false };
-                        double width = 0;
-                        TextInfo BIFsize = new TextInfo { Content = "版中梁" };
-                        Getstruinfo(BIFsize);
-                        (width, MatchNearestLine.Lineset) = getNearestLine(lineinf.Lineset, scatterLinedict.Select(i => i.Key).ToList(), BIFsize.texWidth);
-                        if (Math.Abs(width - BIFsize.texWidth * k / tran) > _tolerance) continue;
-                        if (width != double.MaxValue && width > _tolerance)
-                        {
-                            Lineinf del;
-                            Curve offsetline;
-                            (offsetline,del) = OffsetFromTwoLine(MatchNearestLine, lineinf);
-                            if (!CheckBoxSameLine(offsetline as Line, centerlins.Select(i => i.Key).ToList()))
-                                centerlins.Add(offsetline as Line, BIFsize);
-                            //scatterLinedict.Remove(del);
-                            //scatterLinedict.Remove(scatterLinedict.Keys.FirstOrDefault(k => k.Lineset.Equals(MatchNearestLine.Lineset)));
-                            if (scatterLinedict.Count < 2) break;
-
-                        }
-
-                    }
-                    messag += "已執行建造版中梁，也許有部分不屬於版中梁之建築被套用於此規則 \n";
                 }
                 if (centerlins.Count > 0)
                 {
@@ -629,7 +595,7 @@ namespace CreateColumn
                     XYZ end = new XYZ(line.GetEndPoint(1).X, line.GetEndPoint(1).Y, targetZ);
                     uniqueLines[i].Lineset = Line.CreateBound(start, end);
                 }
-                if (uniqueLines.Last().Lineset.GetEndPoint(1).IsAlmostEqualTo(uniqueLines.First().Lineset.GetEndPoint(0))) goto pass;
+                if (coordinates.Last().IsAlmostEqualTo(coordinates[0])) goto pass;
                 scatterLine:
                 foreach (Lineinf lineinf in uniqueLines)
                 {
@@ -784,6 +750,7 @@ namespace CreateColumn
             }
             else
             {
+                textInfo.Content= Regex.Match(textInfo.Content, sizet, RegexOptions.IgnoreCase).Groups[1].Value;
                 if (TextDict.Count == 0)
                 {
                     var result = getTextdiction();
@@ -798,7 +765,7 @@ namespace CreateColumn
                         Getstruinfo(TextDict[letters]);
                         textInfo.texWidth = TextDict[letters].texWidth;
                         textInfo.texHeight = TextDict[letters].texHeight;
-                        return Result.Succeeded;
+                        break;
                     }
                     catch
                     {
@@ -818,7 +785,7 @@ namespace CreateColumn
                 double distance = CalculateDistance(text.Position, strucpoint);
                 if (distance < mindis)
                 {
-                    if (Regex.Match(text.Content, pattern).Success == false && Regex.Match(text.Content, $@"^{Dictrule}$").Success == false) continue;
+                    if (Regex.Match(text.Content, pattern).Success == false && Regex.Match(text.Content, sizet).Success == false) continue;
                     mindis = distance;
                     nearestMtext = text;
                 }
@@ -834,7 +801,7 @@ namespace CreateColumn
             {
                 Lineinf line = scatterLinedict.Keys.ElementAt(i);
                 double angle = (Math.Atan(line.Lineset.Direction.Y / line.Lineset.Direction.X) + 2 * radian) % radian;
-                if (Math.Abs(textinfo.Rotation - angle) % radian > 0.1) continue; //忽略角度不匹配的線
+                if (Math.Abs(textinfo.Rotation - angle) % radian > 0.1&& Math.Abs(textinfo.Rotation - angle) % radian< 3.1) continue; //忽略角度不匹配的線
                 XYZ textposition = new XYZ(textinfo.Position.X, textinfo.Position.Y, textinfo.Position.Z);
 
                 double distance = line.Lineset.Project(textposition * k + Vector).Distance;
@@ -1143,16 +1110,8 @@ namespace CreateColumn
                     double distance = result1.Distance <= result2.Distance ? result1.Distance : result2.Distance;
                     if (distance < minDistance - _tolerance && distance > _tolerance && checkcontainline(line, linelist[i].Lineset, distance))
                     {
-                        if (texwidth != 0 && Math.Abs(distance - texwidth * k / tran) < _tolerance)
-                        {
-                            minDistance = distance;
-                            nearest = linelist[i].Lineset;
-                        }
-                        //else if (texwidth == 0)
-                        //{
-                        //minDistance = distance;
-                        //nearest = linelist[i].Lineset;
-                        //}
+                        minDistance = distance;
+                        nearest = linelist[i].Lineset;
                     }
                 }
             }
@@ -1171,30 +1130,6 @@ namespace CreateColumn
                 line2 = Line.CreateBound(line2.GetEndPoint(1), line2.GetEndPoint(0));
             }
             Line center = null;
-            //if (line1.Length >= line2.Length)
-            //{
-            //    if (line1.GetEndPoint(0).DistanceTo(line2.GetEndPoint(0)) == line1.Distance(line2.GetEndPoint(0)))
-            //    {
-            //        center = line1.CreateOffset(line1.Distance(line2.GetEndPoint(0)) / 2, Line.CreateBound(line1.GetEndPoint(0), line2.GetEndPoint(0)).Direction) as Line;
-            //    }
-            //    else
-            //    {
-            //        center = line1.CreateOffset(line1.Distance(line2.GetEndPoint(0)) / 2, Line.CreateBound(line1.GetEndPoint(1), line2.GetEndPoint(1)).Direction) as Line;
-            //    }
-            //}
-            //else
-            //{
-            //    if (line2.GetEndPoint(0).DistanceTo(line1.GetEndPoint(0)) == line2.Distance(line1.GetEndPoint(0)))
-            //    {
-            //        center = line2.CreateOffset(line2.Distance(line1.GetEndPoint(0)) / 2, Line.CreateBound(line2.GetEndPoint(0), line1.GetEndPoint(0)).Direction) as Line;
-            //    }
-            //    else
-            //    {
-            //        center = line2.CreateOffset(line2.Distance(line1.GetEndPoint(0)) / 2, Line.CreateBound(line2.GetEndPoint(1), line1.GetEndPoint(1)).Direction) as Line;
-            //    }
-            //}
-
-
             if (line1.Direction.IsAlmostEqualTo(XYZ.BasisX) || line1.Direction.IsAlmostEqualTo(-XYZ.BasisX))
             {
                 center = Line.CreateBound(new XYZ((line1.Length >= line2.Length ? line1.GetEndPoint(0).X : line2.GetEndPoint(0).X),
@@ -1229,34 +1164,6 @@ namespace CreateColumn
             {
                 return true;
             }
-            //double LlineSx = Lline.GetEndPoint(0).X;
-            //double LlineFx = Lline.GetEndPoint(1).X;
-            //double LlineSy = Lline.GetEndPoint(0).Y;
-            //double LlineFy = Lline.GetEndPoint(1).Y;
-            //double SlineSx = Sline.GetEndPoint(0).X;
-            //double SlineFx = Sline.GetEndPoint(1).X;
-            //double SlineSy = Sline.GetEndPoint(0).Y;
-            //double SlineFy = Sline.GetEndPoint(1).Y;
-
-            //double minLx = Math.Min(LlineSx, LlineFx);
-            //double maxLx = Math.Max(LlineSx, LlineFx);
-            //double minLy = Math.Min(LlineSy, LlineFy);
-            //double maxLy = Math.Max(LlineSy, LlineFy);
-            //double minSx = Math.Min(SlineSx, SlineFx);
-            //double maxSx = Math.Max(SlineSx, SlineFx);
-            //double minSy = Math.Min(SlineSy, SlineFy);
-            //double maxSy = Math.Max(SlineSy, SlineFy);
-
-            //if ((Lline.Direction.Normalize().IsAlmostEqualTo(XYZ.BasisX) || Lline.Direction.Normalize().IsAlmostEqualTo(-XYZ.BasisX)) &&
-            //    (Sline.Direction.Normalize().IsAlmostEqualTo(XYZ.BasisX) || Sline.Direction.Normalize().IsAlmostEqualTo(-XYZ.BasisX)))
-            //{
-            //    return !(minLx > minSx + _tolerance || maxLx + _tolerance < maxSx);
-            //}
-            //else if ((Lline.Direction.Normalize().IsAlmostEqualTo(XYZ.BasisY) || Lline.Direction.Normalize().IsAlmostEqualTo(-XYZ.BasisY)) &&
-            //         (Sline.Direction.Normalize().IsAlmostEqualTo(XYZ.BasisY) || Sline.Direction.Normalize().IsAlmostEqualTo(-XYZ.BasisY)))
-            //{
-            //    return !(minLy > minSy + _tolerance || maxLy + _tolerance < maxSy);
-            //}
             return false;
         }   //投影包含
         public static bool DoLinesIntersect2D(Line line1, Line line2)
@@ -1306,7 +1213,7 @@ namespace CreateColumn
         }
         public static Result getTextdiction()
         {
-            if (DictText.Count == 0)
+            if (DictText.Count == 0 && !messag.Contains("部分結構未取得對應尺寸，將導致構建失敗"))
             {
                 messag += ("部分結構未取得對應尺寸，將導致構建失敗");
                 return Result.Failed;
@@ -1318,15 +1225,19 @@ namespace CreateColumn
                     if (text == size) continue;
                     try
                     {
-                        var matchdict = Regex.Match(text.Content, Dictrule, RegexOptions.IgnoreCase);  //**
-                        if (matchdict.Success == false && BIF == true) matchdict = Regex.Match(text.Content, BeaminFloor);
-                        if (Math.Abs(size.Position.Y - text.Position.Y) <= 50 && Math.Abs(size.Position.X - text.Position.X) <= 2000)
+                        var matchdict = Regex.Match(text.Content, Dictrule, RegexOptions.IgnoreCase);
+                        if (Math.Abs(size.Position.Y - text.Position.Y) <= 50 && Math.Abs(size.Position.X - text.Position.X) <= 1600)
                         {
-                            for (int i = 1; i < matchdict.Groups.Count; i++)
+                            MatchCollection matches = Regex.Matches(text.Content, sizet, RegexOptions.IgnoreCase);
+                            foreach(Match m in matches)
                             {
-                                if (matchdict.Groups[i].Value == "" || TextDict.Keys.Equals(matchdict.Groups[i].Value)) continue;
-                                TextDict.Add(matchdict.Groups[i].Value, size);
+                                TextDict.Add(m.Groups[1].Value,size);
                             }
+                            //for (int i = 1; i < matchdict.Groups.Count; i++)
+                            //{
+                            //    if (matchdict.Groups[i].Value == "" || TextDict.Keys.Equals(matchdict.Groups[i].Value)) continue;
+                            //    TextDict.Add(matchdict.Groups[i].Value, size);
+                            //}
                             break;
                         }
                     }
