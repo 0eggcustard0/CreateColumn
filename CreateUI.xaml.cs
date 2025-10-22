@@ -222,40 +222,40 @@ namespace CreateColumn
             try
             {
                 SettingPriorityViewModel viewModel = DataContext as SettingPriorityViewModel;
-                if (viewModel != null)
+                if (viewModel == null) return;
+
+                string path = CreateColumn.AutoCreate.GetCADFilePath();
+                if (path == null)
                 {
-                    string path = CreateColumn.AutoCreate.GetCADFilePath();
-                    if (path == null)
-                    {
-                        MessageBox.Show("未選取CAD檔案", "警告");
-                        return;
-                    }
-                    else
-                    {
-                        viewModel.Path = path;
-                    }
-                    viewModel.Filepath = "CAD圖檔名稱:" + viewModel.Path;
-                    CadDocument document;
-                    var reader = new DwgReader(viewModel.Path);
-                    document = reader.Read();
-                    var layerNames = document.Layers   //新讀取檔案的圖層
-                     .Select(layer => layer.Name)
-                     .OrderBy(name => name)
-                     .ToList();
-                    if (layerNames.Count == 0) MessageBox.Show("請檢查開啟的檔案是否為.dwg檔,以及該檔案是否處於關閉狀態。");
-                    if (viewModel.LayerList.Count == 0)
-                    {
-                        viewModel.LayerList = new ObservableCollection<string>(layerNames);
-                        return;
-                    }
-                    else
-                    {
-                        foreach (string layer in viewModel.LayerList)  //舊圖層
-                        {
-                            if (!layerNames.Contains(layer))    //新圖層 不包含舊的
-                            {
-                                viewModel = DataContext as SettingPriorityViewModel;
-                                viewModel.Path = path;
+                    MessageBox.Show("未選取CAD檔案", "警告");
+                    return;
+                }
+
+                viewModel.Path = path;
+                viewModel.Filepath = "CAD圖檔名稱:" + viewModel.Path;
+
+                // 讀取新的 CAD 檔案
+                CadDocument document;
+                var reader = new DwgReader(viewModel.Path);
+                document = reader.Read();
+
+                var layerNames = document.Layers
+                    .Select(layer => layer.Name)
+                    .OrderBy(name => name)
+                    .ToList();
+
+                if (layerNames.Count == 0)
+                {
+                    MessageBox.Show("請檢查開啟的檔案是否為.dwg檔,以及該檔案是否處於關閉狀態。");
+                    return;
+                }
+
+                // 第一次載入(沒有舊圖層)
+                if (viewModel.LayerList.Count == 0)
+                {
+                    viewModel.LayerList = new ObservableCollection<string>(layerNames);
+                    return;
+                }
 
                                 viewModel.LayerList = new ObservableCollection<string>(layerNames.Where(i => !viewModel.ColumnLayer.Contains(i) &&
                                                                                                            !viewModel.BeamLayer.Contains(i) &&
@@ -265,34 +265,26 @@ namespace CreateColumn
                                                                                                            !viewModel.GridTextLayer.Contains(i) &&
                                                                                                            !viewModel.DictLayer.Contains(i)).ToList());
                                 viewModel.choosing = new Dictionary<string, string>();
-                                viewModel.ColumnLayer = new ObservableCollection<string>();
-                                viewModel.BeamLayer = new ObservableCollection<string>();
-                                viewModel.ColumnTextLayer = new ObservableCollection<string>();
-                                viewModel.BeamTextLayer = new ObservableCollection<string>();
-                                viewModel.GridLayer = new ObservableCollection<string>();
-                                viewModel.GridTextLayer = new ObservableCollection<string>();
-                                viewModel.DictLayer = new ObservableCollection<string>();
-                                viewModel.LayerList = new ObservableCollection<string>(layerNames);
+                                //viewModel.choosing.Remove("ColumnLayer");
+                                //viewModel.choosing.Remove("BeamLayer");
+                                //viewModel.choosing.Remove("ColumnTextLayer");
+                                //viewModel.choosing.Remove("BeamTextLayer");
+                                //viewModel.choosing.Remove("GridLayer");
+                                //viewModel.choosing.Remove("GridTextLayer");
+                                //viewModel.choosing.Remove("DictLayer");
+
+
+                                //viewModel.OnPropertyChanged(viewModel.Path);
                                 return;
                             }
 
                         }
-                        layerNames.RemoveAll(item =>
-                                            viewModel.ColumnLayer.Contains(item) ||
-                                            viewModel.BeamLayer.Contains(item) ||
-                                            viewModel.ColumnTextLayer.Contains(item)||
-                                            viewModel.BeamTextLayer.Contains(item) ||
-                                            viewModel.GridLayer.Contains(item) ||
-                                            viewModel.GridTextLayer.Contains(item) ||
-                                            viewModel.DictLayer.Contains(item) 
-                                            );
-                        viewModel.LayerList = new ObservableCollection<string>(layerNames);
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-
+                MessageBox.Show($"發生錯誤: {ex.Message}", "錯誤");
             }
         }
         public void plusorminus(object s, RoutedEventArgs e)
@@ -364,13 +356,11 @@ namespace CreateColumn
         private void create(object s, RoutedEventArgs e)
         {
             var viewmodel = DataContext as SettingPriorityViewModel;
-            if ((viewmodel.ColumnLayer.Count == 0 && viewmodel.ColumnTextLayer.Count == 0 &&
-                viewmodel.BeamLayer.Count == 0 && viewmodel.BeamTextLayer.Count == 0 &&
-                viewmodel.GridLayer.Count == 0 && viewmodel.GridTextLayer.Count == 0) ||
-                (viewmodel.choosing.ContainsKey("Symbolcollist") == false || viewmodel.choosing["Symbolcollist"] == null) ||
+            if ((viewmodel.choosing.ContainsKey("Symbolcollist") == false || viewmodel.choosing["Symbolcollist"] == null) ||
                 (viewmodel.choosing.ContainsKey("Symbolbeamlist") == false || viewmodel.choosing["Symbolbeamlist"] == null))
             {
                 MessageBox.Show("尚有設定未完成", "警告");
+                return;
             }
             else if (viewmodel.ColumnLayer.Count == 0 || viewmodel.ColumnTextLayer.Count == 0 ||
                     viewmodel.BeamLayer.Count == 0 || viewmodel.BeamTextLayer.Count == 0 ||
