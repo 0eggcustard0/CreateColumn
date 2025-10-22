@@ -1,0 +1,83 @@
+[33m697dc13[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbackup-before-merge[m[33m, [m[1;31morigin/fix-Createcolumn10/15[m[33m)[m HEAD@{0}: checkout: moving from fix-Createcolumn10/15 to backup-before-merge
+[33m6549829[m[33m ([m[1;32mfix-Createcolumn10/15[m[33m)[m HEAD@{1}: reset: moving to HEAD
+[33m6549829[m[33m ([m[1;32mfix-Createcolumn10/15[m[33m)[m HEAD@{2}: reset: moving to HEAD~1
+[33m697dc13[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbackup-before-merge[m[33m, [m[1;31morigin/fix-Createcolumn10/15[m[33m)[m HEAD@{3}: rebase (finish): returning to refs/heads/fix-Createcolumn10/15
+[33m697dc13[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbackup-before-merge[m[33m, [m[1;31morigin/fix-Createcolumn10/15[m[33m)[m HEAD@{4}: rebase (pick): update: long build
+[33m6549829[m[33m ([m[1;32mfix-Createcolumn10/15[m[33m)[m HEAD@{5}: pull --progress --no-edit --no-stat --recurse-submodules=no origin (start): checkout 6549829318064d4262bd7c3ccf90076086571b16
+[33m8b5c93c[m HEAD@{6}: rebase (abort): returning to refs/heads/fix-Createcolumn10/15
+[33m6549829[m[33m ([m[1;32mfix-Createcolumn10/15[m[33m)[m HEAD@{7}: pull --progress --no-edit --no-stat --recurse-submodules=no origin (start): checkout 6549829318064d4262bd7c3ccf90076086571b16
+[33m8b5c93c[m HEAD@{8}: commit (amend): update: long build
+[33m6549829[m[33m ([m[1;32mfix-Createcolumn10/15[m[33m)[m HEAD@{9}: rebase (finish): returning to refs/heads/fix-Createcolumn10/15
+[33m6549829[m[33m ([m[1;32mfix-Createcolumn10/15[m[33m)[m HEAD@{10}: rebase (pick): update: long build
+[33mc622f92[m HEAD@{11}: pull --progress --no-edit --no-stat --recurse-submodules=no origin (start): checkout c622f9221cd54178bdf97db81aa70ead71177cf0
+[33meacafdd[m HEAD@{12}: checkout: moving from eacafdd420059144f83c7d64213e07b1a3455d09 to fix-Createcolumn10/15
+[33meacafdd[m HEAD@{13}: checkout: moving from fix-Createcolumn10/15 to eacafdd420059144f83c7d64213e07b1a3455d09
+[33meacafdd[m HEAD@{14}: rebase (abort): returning to refs/heads/fix-Createcolumn10/15
+[33mc622f92[m HEAD@{15}: pull --progress --no-edit --no-stat --recurse-submodules=no origin (start): checkout c622f9221cd54178bdf97db81aa70ead71177cf0
+[33meacafdd[m HEAD@{16}: checkout: moving from shortline-building to fix-Createcolumn10/15
+[33m2374d11[m[33m ([m[1;31morigin/shortline-building[m[33m, [m[1;32mshortline-building[m[33m)[m HEAD@{17}: checkout: moving from fix-Createcolumn10/15 to shortline-building
+[33meacafdd[m HEAD@{18}: checkout: moving from eacafdd420059144f83c7d64213e07b1a3455d09 to fix-Createcolumn10/15
+[33meacafdd[m HEAD@{19}: checkout: moving from fix-Createcolumn10/15 to eacafdd420059144f83c7d64213e07b1a3455d09
+[33meacafdd[m HEAD@{20}: rebase (abort): returning to refs/heads/fix-Createcolumn10/15
+[33mc622f92[m HEAD@{21}: pull --progress --no-edit --no-stat --recurse-submodules=no origin (start): checkout c622f9221cd54178bdf97db81aa70ead71177cf0
+[33meacafdd[m HEAD@{22}: reset: moving to eacafdd420059144f83c7d64213e07b1a3455d09
+[33meacafdd[m HEAD@{23}: rebase (abort): returning to refs/heads/fix-Createcolumn10/15
+[33mc622f92[m HEAD@{24}: pull --progress --no-edit --no-stat --recurse-submodules=no origin (start): checkout c622f9221cd54178bdf97db81aa70ead71177cf0
+[33meacafdd[m HEAD@{25}: rebase (abort): returning to refs/heads/fix-Createcolumn10/15
+[33mc622f92[m HEAD@{26}: pull --progress --no-edit --no-stat --recurse-submodules=no origin (start): checkout c622f9221cd54178bdf97db81aa70ead71177cf0
+[33meacafdd[m HEAD@{27}: rebase (abort): returning to refs/heads/fix-Createcolumn10/15
+[33mc622f92[m HEAD@{28}: pull --progress --no-edit --no-stat --recurse-submodules=no origin (start): checkout c622f9221cd54178bdf97db81aa70ead71177cf0
+[33meacafdd[m HEAD@{29}: commit (amend): update: long build
+[33mc622f92[m HEAD@{30}: commit (amend): update: long build
+[33m34b41ff[m HEAD@{31}: commit: update: long build
+[33mc88dede[m HEAD@{32}: checkout: moving from shortline-building to fix-Createcolumn10/15
+[33m2374d11[m[33m ([m[1;31morigin/shortline-building[m[33m, [m[1;32mshortline-building[m[33m)[m HEAD@{33}: reset: moving to HEAD
+[33m2374d11[m[33m ([m[1;31morigin/shortline-building[m[33m, [m[1;32mshortline-building[m[33m)[m HEAD@{34}: commit (amend): update:short build
+[33m293bf1b[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{35}: checkout: moving from master to shortline-building
+[33m293bf1b[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{36}: commit: update:size transform
+[33mc88dede[m HEAD@{37}: checkout: moving from fix-Createcolumn10/15 to master
+[33mc88dede[m HEAD@{38}: checkout: moving from master to fix-Createcolumn10/15
+[33mc88dede[m HEAD@{39}: checkout: moving from fix-Createcolumn10/15 to master
+[33mc88dede[m HEAD@{40}: checkout: moving from master to fix-Createcolumn10/15
+[33mc88dede[m HEAD@{41}: commit: update:UI first complete
+[33mcaf056c[m HEAD@{42}: commit: update:match the orgin from cad to revit
+[33m9242bbd[m HEAD@{43}: reset: moving to 9242bbdfe07eb1a1a0693ca413e23cbd1f60fd29
+[33m9242bbd[m HEAD@{44}: reset: moving to 9242bbdfe07eb1a1a0693ca413e23cbd1f60fd29
+[33m9242bbd[m HEAD@{45}: commit (amend): update: without the limit
+[33m35390a0[m HEAD@{46}: commit: update: without the limit
+[33m8f0b312[m HEAD@{47}: commit (amend): update: complete with closed polyline
+[33m48f5b0c[m HEAD@{48}: commit (amend): update: complete with closed polyline
+[33mf7c4d82[m HEAD@{49}: commit (amend): update: complete with closed polyline
+[33mfad206d[m HEAD@{50}: checkout: moving from test to master
+[33mfad206d[m HEAD@{51}: reset: moving to fad206d1c7929cc8fa1f25f1ebd88f12c17d916a
+[33mfad206d[m HEAD@{52}: checkout: moving from master to test
+[33mfad206d[m HEAD@{53}: commit (amend): update: complete with closed polyline
+[33mc1093da[m HEAD@{54}: commit (amend): new: autodraw column and frame
+[33m0cce04c[m HEAD@{55}: commit: new: autodraw column and frame
+[33m37ce241[m HEAD@{56}: reset: moving to 37ce241db1c49b89de0094c27c0547c0cf62470f
+[33m3bc7a24[m HEAD@{57}: checkout: moving from try to master
+[33m52f0cd3[m HEAD@{58}: commit: update: try2
+[33ma6fb263[m HEAD@{59}: checkout: moving from master to try
+[33m3bc7a24[m HEAD@{60}: merge try: Merge made by the 'ort' strategy.
+[33mfadf578[m HEAD@{61}: checkout: moving from try to master
+[33ma6fb263[m HEAD@{62}: commit: update: try
+[33me5dcc8d[m HEAD@{63}: checkout: moving from master to try
+[33mfadf578[m HEAD@{64}: checkout: moving from try to master
+[33me5dcc8d[m HEAD@{65}: checkout: moving from master to try
+[33mfadf578[m HEAD@{66}: merge try: Merge made by the 'ort' strategy.
+[33mf2e9340[m HEAD@{67}: checkout: moving from try to master
+[33me5dcc8d[m HEAD@{68}: checkout: moving from master to try
+[33mf2e9340[m HEAD@{69}: checkout: moving from try to master
+[33me5dcc8d[m HEAD@{70}: checkout: moving from master to try
+[33mf2e9340[m HEAD@{71}: commit: test: 正式
+[33m37ce241[m HEAD@{72}: checkout: moving from try to master
+[33me5dcc8d[m HEAD@{73}: checkout: moving from master to try
+[33m37ce241[m HEAD@{74}: checkout: moving from try to master
+[33me5dcc8d[m HEAD@{75}: checkout: moving from master to try
+[33m37ce241[m HEAD@{76}: checkout: moving from try to master
+[33me5dcc8d[m HEAD@{77}: commit: test: test
+[33m37ce241[m HEAD@{78}: checkout: moving from master to try
+[33m37ce241[m HEAD@{79}: reset: moving to 37ce241db1c49b89de0094c27c0547c0cf62470f
+[33m2806a04[m HEAD@{80}: commit: update: test
+[33m37ce241[m HEAD@{81}: commit: 加入專案檔案。
+[33m6e21817[m HEAD@{82}: commit (initial): 新增 .gitattributes 和 .gitignore。
